@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import solc from "solc";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI } from "../packages/arcproof/src/networks.ts";
+import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI, registryEnvKey } from "../packages/arcproof/src/networks.ts";
 import { arcChain } from "../packages/arcproof/src/receipt.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,10 +30,13 @@ if (!existsSync(envPath)) {
 const env = readFileSync(envPath, "utf8");
 const read = (key) => env.match(new RegExp(`^${key}=(.*)$`, "m"))?.[1]?.trim();
 
-const existing = read("RECEIPT_REGISTRY_ADDRESS");
+const networkKeyEarly = read("ARC_NETWORK") ?? "arcTestnet";
+const networkEarly = networkKeyEarly === "arc" ? arcMainnet : arcTestnet;
+const REGISTRY_KEY = registryEnvKey(networkEarly);
+const existing = read(REGISTRY_KEY);
 if (existing && !process.argv.includes("--force")) {
   console.error(
-    `RECEIPT_REGISTRY_ADDRESS is already set to ${existing}.\n` +
+    `${REGISTRY_KEY} is already set to ${existing}.\n` +
       `Deploying again would strand every receipt written to the old address.\n` +
       `Pass --force only if you are certain you want a second registry.`,
   );
@@ -46,8 +49,7 @@ if (!privateKey) {
   process.exit(1);
 }
 
-const networkKey = read("ARC_NETWORK") ?? "arcTestnet";
-const network = networkKey === "arc" ? arcMainnet : arcTestnet;
+const network = networkEarly;
 
 // ---------------------------------------------------------------- compile
 
@@ -121,9 +123,9 @@ if (receipt.status !== "success" || !receipt.contractAddress) {
 
 const address = receipt.contractAddress;
 
-const next = env.includes("RECEIPT_REGISTRY_ADDRESS=")
-  ? env.replace(/^RECEIPT_REGISTRY_ADDRESS=.*$/m, `RECEIPT_REGISTRY_ADDRESS=${address}`)
-  : `${env.trimEnd()}\nRECEIPT_REGISTRY_ADDRESS=${address}\n`;
+const next = env.includes(`${REGISTRY_KEY}=`)
+  ? env.replace(new RegExp(`^${REGISTRY_KEY}=.*$`, "m"), `${REGISTRY_KEY}=${address}`)
+  : `${env.trimEnd()}\n${REGISTRY_KEY}=${address}\n`;
 writeFileSync(envPath, next, "utf8");
 
 console.log(`
@@ -134,4 +136,4 @@ ReceiptRegistry deployed
   explorer  ${network.explorerUrl}/address/${address}
   tx        ${network.explorerUrl}/tx/${hash}
 
-Written to .env as RECEIPT_REGISTRY_ADDRESS.`);
+Written to .env as ${REGISTRY_KEY}.`);

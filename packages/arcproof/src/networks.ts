@@ -78,6 +78,27 @@ export function networkFor(chainId: number): ArcNetwork {
   );
 }
 
+/**
+ * Environment variable holding the registry address for a given network.
+ *
+ * Per-network on purpose. A single shared variable survives a switch from
+ * testnet to mainnet unchanged, and the app then reads receipts from an
+ * address that exists on the other chain — where it resolves to no contract at
+ * all, or worse, to something unrelated. Naming the network makes the mistake
+ * impossible to make silently.
+ */
+export function registryEnvKey(network: ArcNetwork): string {
+  return `RECEIPT_REGISTRY_ADDRESS_${network.key.toUpperCase()}`;
+}
+
+/** Read the registry address for `network` from an environment map. */
+export function registryFromEnv(
+  network: ArcNetwork,
+  env: Record<string, string | undefined> = process.env,
+): string | undefined {
+  return env[registryEnvKey(network)]?.trim() || undefined;
+}
+
 export function txUrl(network: ArcNetwork, txHash: string): string {
   return `${network.explorerUrl}/tx/${txHash}`;
 }

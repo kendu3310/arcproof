@@ -106,7 +106,7 @@ const gateway = new GatewayClient({
 const before = await gateway.getBalances();
 console.log(`\ngateway available: ${before.gateway.formattedAvailable} USDC`);
 
-const depositTarget = "1";
+const depositTarget = process.argv[3] ?? "0.5";
 if (Number(before.gateway.formattedAvailable) < Number(depositTarget)) {
   console.log(`depositing ${depositTarget} USDC into the Gateway Wallet…`);
   const result = await gateway.deposit(depositTarget);

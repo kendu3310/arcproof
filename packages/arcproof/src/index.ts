@@ -12,6 +12,8 @@ export {
   arcMainnet,
   arcTestnet,
   networkFor,
+  registryEnvKey,
+  registryFromEnv,
   txUrl,
   addressUrl,
   NETWORKS,

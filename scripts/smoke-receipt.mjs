@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { arcMainnet, arcTestnet } from "../packages/arcproof/src/networks.ts";
+import { arcMainnet, arcTestnet, registryEnvKey } from "../packages/arcproof/src/networks.ts";
 import { ReceiptWriter } from "../packages/arcproof/src/receipt.ts";
 import { verifyReceipt } from "../packages/arcproof/src/verifyReceipt.ts";
 import { digest, deriveRequestId } from "../packages/arcproof/src/digest.ts";
@@ -29,11 +29,11 @@ const env = readFileSync(envPath, "utf8");
 const read = (key) => env.match(new RegExp(`^${key}=(.*)$`, "m"))?.[1]?.trim();
 
 const privateKey = read("PROVIDER_PRIVATE_KEY");
-const registry = read("RECEIPT_REGISTRY_ADDRESS");
 const network = read("ARC_NETWORK") === "arc" ? arcMainnet : arcTestnet;
+const registry = read(registryEnvKey(network));
 
 if (!registry) {
-  console.error("RECEIPT_REGISTRY_ADDRESS is empty. Run scripts/deploy-registry.mjs.");
+  console.error(`${registryEnvKey(network)} is empty. Run scripts/deploy-registry.mjs.`);
   process.exit(1);
 }
 

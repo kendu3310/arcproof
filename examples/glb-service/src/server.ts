@@ -18,6 +18,8 @@ import {
   withReceipt,
   arcMainnet,
   arcTestnet,
+  registryFromEnv,
+  registryEnvKey,
   type ArcNetwork,
 } from "arcproof";
 import type { Address, Hex } from "viem";
@@ -28,7 +30,11 @@ const network: ArcNetwork =
 
 const sellerAddress = required("SELLER_ADDRESS") as Address;
 const privateKey = required("PROVIDER_PRIVATE_KEY") as Hex;
-const registry = required("RECEIPT_REGISTRY_ADDRESS") as Address;
+const registry = (registryFromEnv(network) ??
+  fail(
+    `${registryEnvKey(network)} is not set. Deploy the registry to ${network.name} first:\n` +
+      `  node --experimental-strip-types scripts/deploy-registry.mjs`,
+  )) as Address;
 const port = Number(process.env.PORT ?? 3000);
 
 /**
@@ -134,9 +140,11 @@ app.listen(port, () => {
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) {
-    console.error(`${name} is not set. Check .env at the repository root.`);
-    process.exit(1);
-  }
-  return value;
+  if (!value) fail(`${name} is not set. Check .env at the repository root.`);
+  return value as string;
+}
+
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
 }

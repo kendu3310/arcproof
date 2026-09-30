@@ -22,6 +22,8 @@ import {
   arcMainnet,
   arcTestnet,
   RECEIPT_HEADERS,
+  registryFromEnv,
+  registryEnvKey,
   digest,
   type ArcNetwork,
 } from "arcproof";
@@ -33,7 +35,8 @@ const network: ArcNetwork =
   process.env.ARC_NETWORK === "arc" ? arcMainnet : arcTestnet;
 
 const buyerKey = required("BUYER_PRIVATE_KEY") as Hex;
-const registry = required("RECEIPT_REGISTRY_ADDRESS") as Address;
+const registry = (registryFromEnv(network) ??
+  fail(`${registryEnvKey(network)} is not set for ${network.name}.`)) as Address;
 const seller = required("SELLER_ADDRESS") as Address;
 const serviceUrl = process.env.SERVICE_URL ?? "http://localhost:3000";
 
@@ -175,9 +178,11 @@ console.log(`output digest ${digest(result.body)}`);
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) {
-    console.error(`${name} is not set. Check .env at the repository root.`);
-    process.exit(1);
-  }
-  return value;
+  if (!value) fail(`${name} is not set. Check .env at the repository root.`);
+  return value as string;
+}
+
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
 }
