@@ -1,0 +1,22 @@
+{
+  "name": "@arcproof/buyer-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An agent that pays for a service on Arc and then verifies, against the chain, that it got what it paid for.",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types --env-file=../../.env src/agent.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@circle-fin/x402-batching": "^3.5.0",
+    "@x402/core": "^2.28.0",
+    "@x402/evm": "^2.28.0",
+    "arcproof": "*",
+    "viem": "^2.47.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
