@@ -14,6 +14,8 @@
  * quietly degraded.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   verifyReceipt,
@@ -51,17 +53,19 @@ console.log(
   `limits    ${usd(budget.limits.maxPerCall)} per call, ${usd(budget.limits.maxTotal)} total\n`,
 );
 
-const payload = Buffer.from(
-  `arcproof demo payload ${new Date().toISOString()}`,
-  "utf8",
-);
+const assetPath =
+  process.env.ASSET ??
+  resolve(import.meta.dirname, "../../glb-service/fixtures/sample.glb");
+
+const payload = readFileSync(assetPath);
+console.log(`asset     ${assetPath} (${(payload.byteLength / 1048576).toFixed(2)} MB)\n`);
 
 const result = await payAndFetch({
-  url: `${serviceUrl}/echo`,
+  url: `${serviceUrl}/optimize`,
   account,
   budget,
   body: payload,
-  contentType: "application/octet-stream",
+  contentType: "model/gltf-binary",
   log: (message) => console.log(`  ${message}`),
 });
 
@@ -73,6 +77,26 @@ if (!result.response.ok) {
 }
 
 console.log(`  paid ${usd(result.amount)}, received ${result.body.byteLength} bytes`);
+
+const reportHeader = result.response.headers.get("x-glb-report");
+if (reportHeader) {
+  const report = JSON.parse(reportHeader);
+  console.log(
+    `  ${(report.bytesIn / 1048576).toFixed(2)} MB -> ${(report.bytesOut / 1048576).toFixed(2)} MB ` +
+      `(${(report.ratio * 100).toFixed(1)}% of original)`,
+  );
+  // The claim worth checking: geometry untouched. The service says so, and
+  // the receipt below proves these are the bytes that claim describes.
+  const geometryHeld =
+    report.trianglesIn === report.trianglesOut &&
+    report.verticesIn === report.verticesOut;
+  console.log(
+    `  triangles ${report.trianglesIn} -> ${report.trianglesOut}, ` +
+      `vertices ${report.verticesIn} -> ${report.verticesOut} ` +
+      `${geometryHeld ? "(unchanged, as promised)" : "(CHANGED — promise broken)"}`,
+  );
+  if (!geometryHeld) process.exit(1);
+}
 
 const txHash = result.response.headers.get(RECEIPT_HEADERS.tx) as Hex | null;
 const receiptError = result.response.headers.get(RECEIPT_HEADERS.error);

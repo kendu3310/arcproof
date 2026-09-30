@@ -21,6 +21,7 @@ import {
   type ArcNetwork,
 } from "arcproof";
 import type { Address, Hex } from "viem";
+import { optimizeGlb, UnsupportedAsset } from "./optimize.ts";
 
 const network: ArcNetwork =
   process.env.ARC_NETWORK === "arc" ? arcMainnet : arcTestnet;
@@ -83,6 +84,42 @@ app.post(
   receipts,
   (req, res) => {
     res.type("application/octet-stream").send(req.body);
+  },
+);
+
+/**
+ * The real service: shrink a GLB without touching its geometry.
+ *
+ * The body is the optimised file and nothing else, because that is what the
+ * receipt commits to. The before/after numbers travel in a header so they
+ * cannot change the bytes being attested.
+ */
+app.post(
+  "/optimize",
+  rawBody,
+  gateway.require("$0.02") as unknown as RequestHandler,
+  receipts,
+  async (req, res) => {
+    try {
+      const { output, report } = await optimizeGlb(req.body as Buffer, {
+        maxTextureSize: Number(req.query.maxTextureSize ?? 1024),
+      });
+
+      res
+        .type("model/gltf-binary")
+        .setHeader("x-glb-report", JSON.stringify(report));
+      res.send(output);
+    } catch (error) {
+      if (error instanceof UnsupportedAsset) {
+        // Refusing costs the buyer the fee for a request we will not serve,
+        // so say precisely why: a clear 415 lets an agent pick a different
+        // provider instead of retrying into the same wall.
+        res.status(415).json({ error: error.message });
+        return;
+      }
+      console.error("[optimize]", error);
+      res.status(500).json({ error: "optimisation failed" });
+    }
   },
 );
 
