@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+cache/
+*.tsbuildinfo
+
+# Never commit keys. Arc gas is paid in USDC, so a leaked key on this chain
+# drains real money, not testnet confetti.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+.DS_Store
+Thumbs.db
+*.log
