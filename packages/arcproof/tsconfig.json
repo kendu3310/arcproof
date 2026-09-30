@@ -9,6 +9,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    // Source imports carry `.ts` so Node's native type stripping can run the
+    // files directly, while the emitted JS gets `.js` rewritten in. Without the
+    // rewrite the build would ship imports pointing at files that do not exist
+    // in dist/.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
