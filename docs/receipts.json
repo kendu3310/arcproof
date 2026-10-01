@@ -1,0 +1,22 @@
+{
+  "comment": "Receipts recorded on Arc mainnet by the reference service. Listed by transaction hash rather than discovered by scanning: the public RPC rejects eth_getLogs over more than ~5,000 blocks, and at 0.5s per block the gap from the registry's deployment grows by ~172,800 blocks a day. Appended by scripts/record-receipt.mjs.",
+  "network": {
+    "name": "Arc",
+    "chainId": 5042,
+    "rpcUrl": "https://rpc.mainnet.arc.io",
+    "explorerUrl": "https://explorer.arc.io"
+  },
+  "registry": {
+    "address": "0xac9e5859d9d85e7cd37dd852ed299edefbd6aece",
+    "deployBlock": 23587639,
+    "deployTx": "0x76f5391d0e0bb5ae21caa7ad55e86a826864dd638adb95e41cba60ae8a60f56c"
+  },
+  "receipts": [
+    {
+      "txHash": "0x1c86d9c233bfc97a4bfe454529983b88fe321d9c81d16ff7365dd9dc2a2cc1ae",
+      "service": "/optimize",
+      "note": "12.03 MB GLB in, 0.48 MB out. 12 triangles and 24 vertices both ways.",
+      "paidUsd": "0.02"
+    }
+  ]
+}

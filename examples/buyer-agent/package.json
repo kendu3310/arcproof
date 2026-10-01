@@ -5,7 +5,7 @@
   "description": "An agent that pays for a service on Arc and then verifies, against the chain, that it got what it paid for.",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types --env-file=../../.env src/agent.ts",
+    "start": "node --experimental-strip-types --env-file-if-exists=../../.env src/agent.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

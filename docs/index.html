@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>arcproof</title>
+<meta name="description" content="On-chain receipts for paid API calls on Arc. Circle's SDK settles the payment; arcproof proves what was delivered for it.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js" integrity="sha512-+4GGZeGjxh3dBqq5Nk+6oLfcF3o6s0CyOuvEA0YPFvqsUerfG767qq8/bxJEBSUxcbRxPL6ZqnyDrNwCUdrvRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f7f8;
+    --border: #e3e3e6;
+    --text: #16161a;
+    --muted: #6b6b76;
+    --accent: #2f5fd0;
+    --ok: #0f7a4a;
+    --bad: #b3261e;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e0f12; --surface: #17191e; --border: #2a2d35;
+      --text: #e9e9ec; --muted: #9a9aa6; --accent: #7aa2f7;
+      --ok: #4ec98a; --bad: #f08a84;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e0f12; --surface: #17191e; --border: #2a2d35;
+    --text: #e9e9ec; --muted: #9a9aa6; --accent: #7aa2f7;
+    --ok: #4ec98a; --bad: #f08a84;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 56px 16px 96px; }
+  h1 { font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.1; margin: 0 0 .5rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.15rem; margin: 3rem 0 .75rem; letter-spacing: -.01em; }
+  .lede { font-size: 1.1rem; color: var(--muted); margin: 0 0 2rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); }
+  code, .mono { font-family: var(--mono); font-size: .875em; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card + .card { margin-top: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
+  .row div { min-width: 0; }
+  .k { color: var(--muted); font-size: .8rem; display: block; }
+  .v { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
+  .drop {
+    border: 1.5px dashed var(--border); border-radius: 10px; padding: 28px 16px;
+    text-align: center; color: var(--muted); cursor: pointer; background: var(--surface);
+    transition: border-color .15s, color .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); color: var(--text); }
+  .verdict { margin-top: 14px; padding: 14px; border-radius: 8px; border: 1px solid var(--border); font-size: .9rem; }
+  .verdict.ok { border-color: var(--ok); color: var(--ok); }
+  .verdict.bad { border-color: var(--bad); color: var(--bad); }
+  .verdict .mono { color: var(--text); display: block; margin-top: 6px; word-break: break-all; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  select, input[type=text] {
+    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-family: var(--mono); font-size: .82rem;
+  }
+  label { display: block; font-size: .8rem; color: var(--muted); margin: 14px 0 5px; }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>arcproof</h1>
+  <p class="lede">Paying for something online is a solved problem on Arc. Knowing you got what you paid for is not.</p>
+
+  <p>Circle's x402 SDK settles payments on Arc, and it does that well. But search its entire public API for <code>receipt</code>, <code>attest</code>, <code>proof</code> or <code>deliverable</code> and you find nothing. A buyer can prove it paid. It cannot prove what it received.</p>
+
+  <p>That gap matters once the buyer is software. A person can open a 3D model and see that it was mangled. An autonomous agent cannot. It gets bytes back, and no way to tell a careful job from a lazy one.</p>
+
+  <p>arcproof closes that gap and nothing else. After a service hands back a result, it writes the digests of the exact bytes in and out to a contract on Arc mainnet. The buyer hashes its own copies and compares. No trust in the provider is required at any point — which is the only arrangement that works when nobody is watching.</p>
+
+  <h2>Receipts on Arc mainnet</h2>
+  <p class="muted">Read live from <span id="rpcName" class="mono"></span>. Each one is a real payment for a real job.</p>
+  <div id="receipts"><div class="card muted">Loading…</div></div>
+
+  <h2>Check one yourself</h2>
+  <p>Pick a receipt, drop in the file that was sent or the file that came back, and your browser will hash it and compare against the chain. Nothing is uploaded; the hashing happens here.</p>
+
+  <label for="pick">Receipt</label>
+  <select id="pick"></select>
+
+  <label for="txInput">…or any transaction hash from this registry</label>
+  <input type="text" id="txInput" placeholder="0x…" spellcheck="false">
+
+  <label>File to check</label>
+  <div class="drop" id="drop">
+    Drop a file here, or click to choose
+    <input type="file" id="file" hidden>
+  </div>
+  <div id="verdict"></div>
+
+  <footer>
+    <div class="row">
+      <div><span class="k">Registry</span><a class="v" id="registryLink" href="#"></a></div>
+      <div><span class="k">Chain</span><span class="v" id="chainId"></span></div>
+      <div><span class="k">Source</span><a class="v" href="https://github.com/kendu3310/arcproof">github.com/kendu3310/arcproof</a></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+const EVENT_SIG = "Receipt(bytes32,address,address,bytes32,bytes32,uint64,uint64,uint64)";
+const TOPIC0 = "0x" + sha3.keccak256(EVENT_SIG);
+
+let config = null;
+let current = null;
+
+const el = (id) => document.getElementById(id);
+
+init();
+
+async function init() {
+  config = await (await fetch("receipts.json")).json();
+  el("rpcName").textContent = new URL(config.network.rpcUrl).host;
+  el("chainId").textContent = config.network.chainId;
+  const link = el("registryLink");
+  link.href = `${config.network.explorerUrl}/address/${config.registry.address}`;
+  link.textContent = short(config.registry.address);
+
+  const list = el("receipts");
+  list.innerHTML = "";
+  const picker = el("pick");
+
+  for (const entry of config.receipts) {
+    const parsed = await loadReceipt(entry.txHash);
+    list.appendChild(renderReceipt(entry, parsed));
+    if (parsed) {
+      const option = document.createElement("option");
+      option.value = entry.txHash;
+      option.textContent = `${entry.service} — ${entry.note}`;
+      picker.appendChild(option);
+    }
+  }
+
+  if (!config.receipts.length) list.innerHTML = '<div class="card muted">No receipts recorded yet.</div>';
+
+  picker.addEventListener("change", () => selectReceipt(picker.value));
+  el("txInput").addEventListener("change", (e) => selectReceipt(e.target.value.trim()));
+  if (picker.value) await selectReceipt(picker.value);
+
+  wireDropZone();
+}
+
+/** Read one receipt by transaction hash. Scanning is not an option here: the
+ *  public RPC refuses eth_getLogs across more than ~5,000 blocks. */
+async function loadReceipt(txHash) {
+  const receipt = await rpc("eth_getTransactionReceipt", [txHash]);
+  if (!receipt) return null;
+
+  const log = (receipt.logs || []).find(
+    (candidate) =>
+      candidate.address.toLowerCase() === config.registry.address.toLowerCase() &&
+      candidate.topics[0].toLowerCase() === TOPIC0.toLowerCase(),
+  );
+  if (!log) return null;
+
+  const data = log.data.slice(2);
+  const word = (i) => data.slice(i * 64, (i + 1) * 64);
+
+  return {
+    txHash,
+    blockNumber: parseInt(receipt.blockNumber, 16),
+    requestId: log.topics[1],
+    provider: "0x" + log.topics[2].slice(26),
+    payer: "0x" + log.topics[3].slice(26),
+    inputHash: "0x" + word(0),
+    outputHash: "0x" + word(1),
+    bytesIn: BigInt("0x" + word(2)),
+    bytesOut: BigInt("0x" + word(3)),
+    timestamp: Number(BigInt("0x" + word(4))),
+  };
+}
+
+async function rpc(method, params) {
+  const response = await fetch(config.network.rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
+  const body = await response.json();
+  if (body.error) throw new Error(body.error.message);
+  return body.result;
+}
+
+function renderReceipt(entry, parsed) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  if (!parsed) {
+    card.innerHTML = `<div class="muted">Could not read ${short(entry.txHash)} from the chain.</div>`;
+    return card;
+  }
+
+  const saved = Number(parsed.bytesIn - parsed.bytesOut);
+  const pct = ((saved / Number(parsed.bytesIn)) * 100).toFixed(1);
+
+  card.innerHTML = `
+    <strong>${entry.service}</strong>
+    <span class="muted"> · paid $${entry.paidUsd} · ${new Date(parsed.timestamp * 1000).toISOString().replace("T", " ").slice(0, 16)} UTC</span>
+    <div class="row">
+      <div><span class="k">In</span><span class="v">${fmtBytes(parsed.bytesIn)}</span></div>
+      <div><span class="k">Out</span><span class="v">${fmtBytes(parsed.bytesOut)} (${pct}% smaller)</span></div>
+      <div><span class="k">Payer</span><span class="v">${short(parsed.payer)}</span></div>
+      <div><span class="k">Provider</span><span class="v">${short(parsed.provider)}</span></div>
+    </div>
+    <div class="row">
+      <div><span class="k">Transaction</span><a class="v" href="${config.network.explorerUrl}/tx/${parsed.txHash}">${short(parsed.txHash)}</a></div>
+    </div>`;
+  return card;
+}
+
+async function selectReceipt(txHash) {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return;
+  el("verdict").innerHTML = "";
+  try {
+    current = await loadReceipt(txHash);
+    if (!current) {
+      show(false, `No receipt from this registry in transaction ${short(txHash)}.`);
+    }
+  } catch (error) {
+    show(false, `Could not read that transaction: ${error.message}`);
+  }
+}
+
+function wireDropZone() {
+  const drop = el("drop");
+  const file = el("file");
+
+  drop.addEventListener("click", () => file.click());
+  file.addEventListener("change", () => file.files[0] && check(file.files[0]));
+
+  for (const type of ["dragenter", "dragover"]) {
+    drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add("over"); });
+  }
+  for (const type of ["dragleave", "drop"]) {
+    drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.remove("over"); });
+  }
+  drop.addEventListener("drop", (e) => {
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) check(dropped);
+  });
+}
+
+async function check(file) {
+  if (!current) {
+    show(false, "Choose a receipt first.");
+    return;
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const hash = "0x" + sha3.keccak256(bytes);
+
+  if (hash === current.inputHash.toLowerCase()) {
+    show(true, `This is exactly the file that was sent for ${short(current.txHash)}. The chain recorded the same digest.`, hash);
+  } else if (hash === current.outputHash.toLowerCase()) {
+    show(true, `This is exactly the file that was returned for ${short(current.txHash)}. The chain recorded the same digest.`, hash);
+  } else {
+    show(
+      false,
+      `This file does not match either side of that receipt. It is not what was paid for, or it has been altered since — a single changed byte is enough to land here.`,
+      `yours    ${hash}\nrecorded ${current.inputHash} (in)\n         ${current.outputHash} (out)`,
+    );
+  }
+}
+
+function show(ok, message, detail) {
+  el("verdict").innerHTML =
+    `<div class="verdict ${ok ? "ok" : "bad"}">${ok ? "Matches" : "No match"} — ${message}` +
+    (detail ? `<span class="mono">${detail.replace(/\n/g, "<br>")}</span>` : "") +
+    `</div>`;
+}
+
+const short = (value) => `${value.slice(0, 10)}…${value.slice(-8)}`;
+
+function fmtBytes(value) {
+  const n = Number(value);
+  if (n >= 1048576) return `${(n / 1048576).toFixed(2)} MB`;
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${n} B`;
+}
+</script>
+</body>
+</html>

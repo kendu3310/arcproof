@@ -5,8 +5,9 @@
   "description": "A paid asset-optimisation endpoint on Arc: Circle's SDK takes the payment, arcproof proves the delivery.",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types --env-file=../../.env src/server.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "start": "node --experimental-strip-types --env-file-if-exists=../../.env src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
   },
   "dependencies": {
     "@circle-fin/x402-batching": "^3.5.0",
