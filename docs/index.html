@@ -8,64 +8,73 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js" integrity="sha512-+4GGZeGjxh3dBqq5Nk+6oLfcF3o6s0CyOuvEA0YPFvqsUerfG767qq8/bxJEBSUxcbRxPL6ZqnyDrNwCUdrvRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root {
-    --bg: #ffffff;
-    --surface: #f7f7f8;
-    --border: #e3e3e6;
-    --text: #16161a;
-    --muted: #6b6b76;
-    --accent: #2f5fd0;
-    --ok: #0f7a4a;
-    --bad: #b3261e;
+    --bg:#fff; --surface:#f7f7f8; --raised:#fff; --border:#e3e3e6;
+    --text:#16161a; --muted:#6b6b76; --accent:#2f5fd0;
+    --ok:#0f7a4a; --okbg:#eaf6ef; --bad:#b3261e; --badbg:#fdeceb;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0e0f12; --surface: #17191e; --border: #2a2d35;
-      --text: #e9e9ec; --muted: #9a9aa6; --accent: #7aa2f7;
-      --ok: #4ec98a; --bad: #f08a84;
+      --bg:#0e0f12; --surface:#15171c; --raised:#1b1e25; --border:#2a2d35;
+      --text:#e9e9ec; --muted:#9a9aa6; --accent:#7aa2f7;
+      --ok:#4ec98a; --okbg:#122a20; --bad:#f08a84; --badbg:#2b1715;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0e0f12; --surface: #17191e; --border: #2a2d35;
-    --text: #e9e9ec; --muted: #9a9aa6; --accent: #7aa2f7;
-    --ok: #4ec98a; --bad: #f08a84;
+    --bg:#0e0f12; --surface:#15171c; --raised:#1b1e25; --border:#2a2d35;
+    --text:#e9e9ec; --muted:#9a9aa6; --accent:#7aa2f7;
+    --ok:#4ec98a; --okbg:#122a20; --bad:#f08a84; --badbg:#2b1715;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing:border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing:antialiased;
   }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 56px 16px 96px; }
-  h1 { font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.1; margin: 0 0 .5rem; letter-spacing: -.02em; }
-  h2 { font-size: 1.15rem; margin: 3rem 0 .75rem; letter-spacing: -.01em; }
-  .lede { font-size: 1.1rem; color: var(--muted); margin: 0 0 2rem; }
-  p { margin: 0 0 1rem; }
-  a { color: var(--accent); }
-  code, .mono { font-family: var(--mono); font-size: .875em; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .card + .card { margin-top: 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
-  .row div { min-width: 0; }
-  .k { color: var(--muted); font-size: .8rem; display: block; }
-  .v { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
+  .wrap { max-width:840px; margin:0 auto; padding:56px 16px 96px; }
+  h1 { font-size:clamp(2rem,6vw,2.75rem); line-height:1.1; margin:0 0 .5rem; letter-spacing:-.02em; }
+  h2 { font-size:1.2rem; margin:3.5rem 0 .75rem; letter-spacing:-.01em; }
+  .lede { font-size:1.12rem; color:var(--muted); margin:0 0 2rem; }
+  p { margin:0 0 1rem; }
+  a { color:var(--accent); }
+  code,.mono { font-family:var(--mono); font-size:.875em; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .card + .card { margin-top:12px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:10px; }
+  .row > div { min-width:0; }
+  .k { color:var(--muted); font-size:.78rem; display:block; }
+  .v { font-family:var(--mono); font-size:.8rem; word-break:break-all; }
   .drop {
-    border: 1.5px dashed var(--border); border-radius: 10px; padding: 28px 16px;
-    text-align: center; color: var(--muted); cursor: pointer; background: var(--surface);
-    transition: border-color .15s, color .15s;
+    border:1.5px dashed var(--border); border-radius:10px; padding:30px 16px;
+    text-align:center; color:var(--muted); cursor:pointer; background:var(--surface);
+    transition:border-color .15s,color .15s;
   }
-  .drop:hover, .drop.over { border-color: var(--accent); color: var(--text); }
-  .verdict { margin-top: 14px; padding: 14px; border-radius: 8px; border: 1px solid var(--border); font-size: .9rem; }
-  .verdict.ok { border-color: var(--ok); color: var(--ok); }
-  .verdict.bad { border-color: var(--bad); color: var(--bad); }
-  .verdict .mono { color: var(--text); display: block; margin-top: 6px; word-break: break-all; }
-  .muted { color: var(--muted); font-size: .9rem; }
-  select, input[type=text] {
-    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--bg); color: var(--text); font-family: var(--mono); font-size: .82rem;
+  .drop:hover,.drop.over { border-color:var(--accent); color:var(--text); }
+  .drop[aria-disabled="true"] { opacity:.55; cursor:not-allowed; }
+  .verdict { margin-top:14px; padding:14px; border-radius:8px; border:1px solid var(--border); font-size:.92rem; }
+  .verdict.ok { border-color:var(--ok); background:var(--okbg); color:var(--ok); }
+  .verdict.bad { border-color:var(--bad); background:var(--badbg); color:var(--bad); }
+  .verdict .mono { color:var(--text); display:block; margin-top:8px; white-space:pre-wrap; word-break:break-all; font-size:.78rem; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  .pill { display:inline-block; font-size:.74rem; padding:2px 9px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  select,input[type=text] {
+    width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-family:var(--mono); font-size:.82rem;
   }
-  label { display: block; font-size: .8rem; color: var(--muted); margin: 14px 0 5px; }
-  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+  label { display:block; font-size:.78rem; color:var(--muted); margin:14px 0 5px; }
+  button {
+    font:inherit; font-size:.9rem; padding:9px 16px; border-radius:8px;
+    border:1px solid var(--border); background:var(--raised); color:var(--text); cursor:pointer;
+  }
+  button:hover { border-color:var(--accent); }
+  .steps { margin:14px 0 0; padding:0; list-style:none; font-size:.9rem; }
+  .steps li { padding:5px 0 5px 24px; position:relative; color:var(--muted); }
+  .steps li::before { content:"○"; position:absolute; left:4px; }
+  .steps li.done { color:var(--text); }
+  .steps li.done::before { content:"●"; color:var(--ok); }
+  .steps li.fail::before { content:"●"; color:var(--bad); }
+  footer { margin-top:72px; padding-top:20px; border-top:1px solid var(--border); color:var(--muted); font-size:.85rem; }
+  hr { border:0; border-top:1px solid var(--border); margin:40px 0; }
 </style>
 </head>
 <body>
@@ -74,18 +83,29 @@
   <h1>arcproof</h1>
   <p class="lede">Paying for something online is a solved problem on Arc. Knowing you got what you paid for is not.</p>
 
-  <p>Circle's x402 SDK settles payments on Arc, and it does that well. But search its entire public API for <code>receipt</code>, <code>attest</code>, <code>proof</code> or <code>deliverable</code> and you find nothing. A buyer can prove it paid. It cannot prove what it received.</p>
+  <p>Circle's x402 SDK settles payments on Arc, and does it well. But search its entire public API for <code>receipt</code>, <code>attest</code>, <code>proof</code> or <code>deliverable</code> and you find nothing. A buyer can prove it paid. It cannot prove what it received.</p>
 
-  <p>That gap matters once the buyer is software. A person can open a 3D model and see that it was mangled. An autonomous agent cannot. It gets bytes back, and no way to tell a careful job from a lazy one.</p>
+  <p>That gap matters once the buyer is software. A person can open a 3D model and see it was mangled. An autonomous agent cannot — it gets bytes back, and no way to tell a careful job from a lazy one.</p>
 
-  <p>arcproof closes that gap and nothing else. After a service hands back a result, it writes the digests of the exact bytes in and out to a contract on Arc mainnet. The buyer hashes its own copies and compares. No trust in the provider is required at any point — which is the only arrangement that works when nobody is watching.</p>
+  <p>arcproof closes that gap and nothing else. After a service returns a result, it writes the digests of the exact bytes in and out to a contract on Arc mainnet. The buyer hashes its own copies and compares. No trust in the provider is needed at any point, which is the only arrangement that works when nobody is watching.</p>
 
-  <h2>Receipts on Arc mainnet</h2>
-  <p class="muted">Read live from <span id="rpcName" class="mono"></span>. Each one is a real payment for a real job.</p>
+  <h2>Watch it happen <span class="pill" id="demoPill">checking…</span></h2>
+  <p>Drop in a <code>.glb</code> model. It is optimised by the live service, a receipt is written to Arc mainnet, and then your browser hashes both files and checks them against that receipt. No wallet needed — these runs are sponsored.</p>
+
+  <div class="drop" id="demoDrop">
+    Drop a .glb file here, or click to choose
+    <input type="file" id="demoFile" accept=".glb,model/gltf-binary" hidden>
+  </div>
+  <div id="demoOut"></div>
+
+  <hr>
+
+  <h2>Receipts already on Arc mainnet</h2>
+  <p class="muted">Read live from <span id="rpcName" class="mono"></span>.</p>
   <div id="receipts"><div class="card muted">Loading…</div></div>
 
-  <h2>Check one yourself</h2>
-  <p>Pick a receipt, drop in the file that was sent or the file that came back, and your browser will hash it and compare against the chain. Nothing is uploaded; the hashing happens here.</p>
+  <h2>Check an existing receipt</h2>
+  <p>Pick one, drop in the file that was sent or the one that came back, and your browser compares it against the chain. Nothing is uploaded; the hashing happens here.</p>
 
   <label for="pick">Receipt</label>
   <select id="pick"></select>
@@ -115,19 +135,152 @@ const TOPIC0 = "0x" + sha3.keccak256(EVENT_SIG);
 
 let config = null;
 let current = null;
+let apiBase = null;
 
 const el = (id) => document.getElementById(id);
 
-init();
+init().catch((error) => {
+  el("receipts").innerHTML = `<div class="card muted">Could not load: ${error.message}</div>`;
+});
 
 async function init() {
   config = await (await fetch("receipts.json")).json();
+
+  // ?api=… lets the page be driven against a service running locally, which is
+  // how this is developed before anything is deployed.
+  apiBase = new URLSearchParams(location.search).get("api") || config.api || null;
+
   el("rpcName").textContent = new URL(config.network.rpcUrl).host;
   el("chainId").textContent = config.network.chainId;
   const link = el("registryLink");
   link.href = `${config.network.explorerUrl}/address/${config.registry.address}`;
   link.textContent = short(config.registry.address);
 
+  wireDrop(el("demoDrop"), el("demoFile"), runDemo);
+  wireDrop(el("drop"), el("file"), checkAgainstReceipt);
+
+  await Promise.all([loadDemoStatus(), loadReceipts()]);
+}
+
+/* ---------------------------------------------------------------- demo --- */
+
+async function loadDemoStatus() {
+  const pill = el("demoPill");
+  const drop = el("demoDrop");
+
+  if (!apiBase) {
+    pill.textContent = "offline";
+    drop.setAttribute("aria-disabled", "true");
+    drop.textContent = "The demo service is not configured yet.";
+    return;
+  }
+
+  try {
+    const status = await (await fetch(`${apiBase}/demo/status`)).json();
+    if (status.available) {
+      pill.textContent = `${status.globalPerDay - status.usedToday} free runs left today`;
+    } else {
+      pill.textContent = "unavailable";
+      drop.setAttribute("aria-disabled", "true");
+      drop.textContent = status.reason;
+    }
+  } catch {
+    // Free hosting sleeps when idle, and the first request wakes it. Saying so
+    // beats a dead-looking page that silently does nothing.
+    pill.textContent = "waking up";
+  }
+}
+
+async function runDemo(file) {
+  if (!apiBase) return;
+
+  const steps = [
+    "Uploading and optimising",
+    "Writing a receipt to Arc mainnet",
+    "Hashing both files in your browser",
+    "Comparing against the chain",
+  ];
+  const out = el("demoOut");
+  out.innerHTML = `<div class="card"><ul class="steps">${steps
+    .map((s, i) => `<li id="step${i}">${s}</li>`)
+    .join("")}</ul><div id="demoDetail"></div></div>`;
+  const mark = (i, state) => el(`step${i}`)?.classList.add(state);
+
+  try {
+    const input = new Uint8Array(await file.arrayBuffer());
+
+    const response = await fetch(`${apiBase}/demo/optimize`, {
+      method: "POST",
+      headers: { "content-type": "model/gltf-binary" },
+      body: input,
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      mark(0, "fail");
+      el("demoDetail").innerHTML = `<div class="verdict bad">${body.error || `HTTP ${response.status}`}</div>`;
+      return;
+    }
+    mark(0, "done");
+
+    const output = new Uint8Array(await response.arrayBuffer());
+    const report = JSON.parse(response.headers.get("x-glb-report") || "{}");
+    const txHash = response.headers.get("x-arcproof-tx");
+    const receiptError = response.headers.get("x-arcproof-error");
+
+    if (!txHash) {
+      mark(1, "fail");
+      el("demoDetail").innerHTML =
+        `<div class="verdict bad">The file came back, but no receipt was recorded${receiptError ? `: ${receiptError}` : ""}. The bytes are fine; this exchange is simply unproven.</div>`;
+      return;
+    }
+    mark(1, "done");
+
+    const inputHash = "0x" + sha3.keccak256(input);
+    const outputHash = "0x" + sha3.keccak256(output);
+    mark(2, "done");
+
+    const receipt = await loadReceipt(txHash);
+    const matches =
+      receipt &&
+      receipt.inputHash === inputHash &&
+      receipt.outputHash === outputHash &&
+      receipt.bytesIn === BigInt(input.length) &&
+      receipt.bytesOut === BigInt(output.length);
+    mark(3, matches ? "done" : "fail");
+
+    const geometryHeld =
+      report.trianglesIn === report.trianglesOut && report.verticesIn === report.verticesOut;
+
+    const url = URL.createObjectURL(new Blob([output], { type: "model/gltf-binary" }));
+
+    el("demoDetail").innerHTML = `
+      <div class="row">
+        <div><span class="k">Size</span><span class="v">${fmtBytes(BigInt(input.length))} → ${fmtBytes(BigInt(output.length))}</span></div>
+        <div><span class="k">Triangles</span><span class="v">${report.trianglesIn} → ${report.trianglesOut}</span></div>
+        <div><span class="k">Vertices</span><span class="v">${report.verticesIn} → ${report.verticesOut}</span></div>
+      </div>
+      <div class="row">
+        <div><span class="k">Receipt</span><a class="v" href="${config.network.explorerUrl}/tx/${txHash}">${short(txHash)}</a></div>
+      </div>
+      <div class="verdict ${matches ? "ok" : "bad"}">
+        ${matches
+          ? `Verified. The digests the chain recorded are exactly the digests of the file you sent and the file you just received.${geometryHeld ? " Triangle and vertex counts are unchanged, as promised — nothing was thrown away to make it smaller." : ""}`
+          : "The receipt does not match these bytes. Something changed between the service and your browser."}
+        <span class="mono">sent     ${inputHash}\nreceived ${outputHash}</span>
+      </div>
+      <p style="margin-top:14px"><a href="${url}" download="optimized.glb"><button>Download the optimised file</button></a></p>
+      ${report.requiresExtensions?.length ? `<p class="muted">Needs <code>${report.requiresExtensions.join("</code>, <code>")}</code> to open — most modern engines support it; <code>?textureFormat=png</code> is available for older ones.</p>` : ""}`;
+
+    await loadDemoStatus();
+  } catch (error) {
+    el("demoDetail").innerHTML = `<div class="verdict bad">${error.message}</div>`;
+  }
+}
+
+/* ------------------------------------------------------------ receipts --- */
+
+async function loadReceipts() {
   const list = el("receipts");
   list.innerHTML = "";
   const picker = el("pick");
@@ -148,12 +301,10 @@ async function init() {
   picker.addEventListener("change", () => selectReceipt(picker.value));
   el("txInput").addEventListener("change", (e) => selectReceipt(e.target.value.trim()));
   if (picker.value) await selectReceipt(picker.value);
-
-  wireDropZone();
 }
 
-/** Read one receipt by transaction hash. Scanning is not an option here: the
- *  public RPC refuses eth_getLogs across more than ~5,000 blocks. */
+/** Read one receipt by transaction hash. Scanning is not an option: the public
+ *  RPC refuses eth_getLogs across more than ~5,000 blocks. */
 async function loadReceipt(txHash) {
   const receipt = await rpc("eth_getTransactionReceipt", [txHash]);
   if (!receipt) return null;
@@ -170,7 +321,6 @@ async function loadReceipt(txHash) {
 
   return {
     txHash,
-    blockNumber: parseInt(receipt.blockNumber, 16),
     requestId: log.topics[1],
     provider: "0x" + log.topics[2].slice(26),
     payer: "0x" + log.topics[3].slice(26),
@@ -202,8 +352,7 @@ function renderReceipt(entry, parsed) {
     return card;
   }
 
-  const saved = Number(parsed.bytesIn - parsed.bytesOut);
-  const pct = ((saved / Number(parsed.bytesIn)) * 100).toFixed(1);
+  const pct = ((Number(parsed.bytesIn - parsed.bytesOut) / Number(parsed.bytesIn)) * 100).toFixed(1);
 
   card.innerHTML = `
     <strong>${entry.service}</strong>
@@ -225,50 +374,28 @@ async function selectReceipt(txHash) {
   el("verdict").innerHTML = "";
   try {
     current = await loadReceipt(txHash);
-    if (!current) {
-      show(false, `No receipt from this registry in transaction ${short(txHash)}.`);
-    }
+    if (!current) show(false, `No receipt from this registry in transaction ${short(txHash)}.`);
   } catch (error) {
     show(false, `Could not read that transaction: ${error.message}`);
   }
 }
 
-function wireDropZone() {
-  const drop = el("drop");
-  const file = el("file");
-
-  drop.addEventListener("click", () => file.click());
-  file.addEventListener("change", () => file.files[0] && check(file.files[0]));
-
-  for (const type of ["dragenter", "dragover"]) {
-    drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add("over"); });
-  }
-  for (const type of ["dragleave", "drop"]) {
-    drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.remove("over"); });
-  }
-  drop.addEventListener("drop", (e) => {
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) check(dropped);
-  });
-}
-
-async function check(file) {
+async function checkAgainstReceipt(file) {
   if (!current) {
     show(false, "Choose a receipt first.");
     return;
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const hash = "0x" + sha3.keccak256(bytes);
+  const hash = "0x" + sha3.keccak256(new Uint8Array(await file.arrayBuffer()));
 
   if (hash === current.inputHash.toLowerCase()) {
-    show(true, `This is exactly the file that was sent for ${short(current.txHash)}. The chain recorded the same digest.`, hash);
+    show(true, `This is exactly the file that was sent for ${short(current.txHash)}.`, hash);
   } else if (hash === current.outputHash.toLowerCase()) {
-    show(true, `This is exactly the file that was returned for ${short(current.txHash)}. The chain recorded the same digest.`, hash);
+    show(true, `This is exactly the file that was returned for ${short(current.txHash)}.`, hash);
   } else {
     show(
       false,
-      `This file does not match either side of that receipt. It is not what was paid for, or it has been altered since — a single changed byte is enough to land here.`,
+      "This file matches neither side of that receipt. It is not what was paid for, or it has changed since — one altered byte is enough to land here.",
       `yours    ${hash}\nrecorded ${current.inputHash} (in)\n         ${current.outputHash} (out)`,
     );
   }
@@ -277,8 +404,30 @@ async function check(file) {
 function show(ok, message, detail) {
   el("verdict").innerHTML =
     `<div class="verdict ${ok ? "ok" : "bad"}">${ok ? "Matches" : "No match"} — ${message}` +
-    (detail ? `<span class="mono">${detail.replace(/\n/g, "<br>")}</span>` : "") +
+    (detail ? `<span class="mono">${detail}</span>` : "") +
     `</div>`;
+}
+
+/* ----------------------------------------------------------------- bits --- */
+
+function wireDrop(zone, input, handler) {
+  const guard = (file) => {
+    if (zone.getAttribute("aria-disabled") === "true") return;
+    if (file) handler(file);
+  };
+
+  zone.addEventListener("click", () => {
+    if (zone.getAttribute("aria-disabled") !== "true") input.click();
+  });
+  input.addEventListener("change", () => guard(input.files[0]));
+
+  for (const type of ["dragenter", "dragover"]) {
+    zone.addEventListener(type, (e) => { e.preventDefault(); zone.classList.add("over"); });
+  }
+  for (const type of ["dragleave", "drop"]) {
+    zone.addEventListener(type, (e) => { e.preventDefault(); zone.classList.remove("over"); });
+  }
+  zone.addEventListener("drop", (e) => guard(e.dataTransfer.files[0]));
 }
 
 const short = (value) => `${value.slice(0, 10)}…${value.slice(-8)}`;

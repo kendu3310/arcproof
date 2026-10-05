@@ -15,7 +15,7 @@
 
 import { NodeIO, type Document } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, prune, textureCompress } from "@gltf-transform/functions";
+import { dedup, prune, textureCompress, TextureResizeFilter } from "@gltf-transform/functions";
 import sharp from "sharp";
 
 export interface OptimizeOptions {
@@ -90,7 +90,7 @@ export async function optimizeGlb(
       encoder: sharp,
       targetFormat: textureFormat,
       resize: [maxTextureSize, maxTextureSize],
-      resizeFilter: "lanczos3",
+      resizeFilter: TextureResizeFilter.LANCZOS3,
     }),
   );
 

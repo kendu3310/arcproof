@@ -1,5 +1,7 @@
 {
   "comment": "Receipts recorded on Arc mainnet by the reference service. Listed by transaction hash rather than discovered by scanning: the public RPC rejects eth_getLogs over more than ~5,000 blocks, and at 0.5s per block the gap from the registry's deployment grows by ~172,800 blocks a day. Appended by scripts/record-receipt.mjs.",
+  "api": null,
+  "apiComment": "Base URL of the live service. null hides the interactive demo. Append ?api=http://localhost:3000 to the page URL to drive it against a local service.",
   "network": {
     "name": "Arc",
     "chainId": 5042,
@@ -17,6 +19,12 @@
       "service": "/optimize",
       "note": "12.03 MB GLB in, 0.48 MB out. 12 triangles and 24 vertices both ways.",
       "paidUsd": "0.02"
+    },
+    {
+      "txHash": "0x585f3f8436fa65147a99e5885e1a7b42832e643b23f9a0a67fc0b987161a5e1f",
+      "service": "/demo/optimize",
+      "note": "Sponsored demo run. Same pipeline, same receipt; the provider paid the gas.",
+      "paidUsd": "0.00"
     }
   ]
 }

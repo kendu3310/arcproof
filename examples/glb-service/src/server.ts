@@ -22,8 +22,10 @@ import {
   registryEnvKey,
   type ArcNetwork,
 } from "arcproof";
-import type { Address, Hex } from "viem";
+import { createPublicClient, http, parseUnits, type Address, type Hex } from "viem";
+import { arcChain } from "arcproof";
 import { optimizeGlb, UnsupportedAsset } from "./optimize.ts";
+import { createDemoGuard } from "./demo.ts";
 
 const network: ArcNetwork =
   process.env.ARC_NETWORK === "arc" ? arcMainnet : arcTestnet;
@@ -67,6 +69,28 @@ const app = express();
 // re-serialisation, not the request.
 const rawBody = express.raw({ type: "*/*", limit: "64mb" });
 
+// The demo runs on a 512 MB instance and anyone can call it, so it takes a
+// smaller bite than the paid route does.
+const demoBody = express.raw({ type: "*/*", limit: "24mb" });
+
+// The published page lives on a different origin to this API, so the browser
+// needs permission both to call it and to read the headers the receipt
+// travels in. Without exposeHeaders the fetch succeeds and the page sees no
+// receipt at all.
+app.use((req, res, next) => {
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-allow-headers", "content-type, payment-signature");
+  res.setHeader(
+    "access-control-expose-headers",
+    "x-glb-report, x-arcproof-tx, x-arcproof-input, x-arcproof-output, x-arcproof-request-id, x-arcproof-registry, x-arcproof-provider, x-arcproof-error",
+  );
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -94,6 +118,34 @@ app.post(
 );
 
 /**
+ * The work itself. Shared by the paid route and the sponsored demo, because
+ * the demo has to exercise the real path — one that skipped the on-chain
+ * write, or ran a gentler pipeline, would demonstrate nothing.
+ */
+const handleOptimize: RequestHandler = async (req, res) => {
+  try {
+    const { output, report } = await optimizeGlb(req.body as Buffer, {
+      maxTextureSize: Number(req.query.maxTextureSize ?? 1024),
+    });
+
+    res
+      .type("model/gltf-binary")
+      .setHeader("x-glb-report", JSON.stringify(report));
+    res.send(output);
+  } catch (error) {
+    if (error instanceof UnsupportedAsset) {
+      // Refusing costs the buyer the fee for a request we will not serve,
+      // so say precisely why: a clear 415 lets an agent pick a different
+      // provider instead of retrying into the same wall.
+      res.status(415).json({ error: error.message });
+      return;
+    }
+    console.error("[optimize]", error);
+    res.status(500).json({ error: "optimisation failed" });
+  }
+};
+
+/**
  * The real service: shrink a GLB without touching its geometry.
  *
  * The body is the optimised file and nothing else, because that is what the
@@ -105,28 +157,42 @@ app.post(
   rawBody,
   gateway.require("$0.02") as unknown as RequestHandler,
   receipts,
-  async (req, res) => {
-    try {
-      const { output, report } = await optimizeGlb(req.body as Buffer, {
-        maxTextureSize: Number(req.query.maxTextureSize ?? 1024),
-      });
+  handleOptimize,
+);
 
-      res
-        .type("model/gltf-binary")
-        .setHeader("x-glb-report", JSON.stringify(report));
-      res.send(output);
-    } catch (error) {
-      if (error instanceof UnsupportedAsset) {
-        // Refusing costs the buyer the fee for a request we will not serve,
-        // so say precisely why: a clear 415 lets an agent pick a different
-        // provider instead of retrying into the same wall.
-        res.status(415).json({ error: error.message });
-        return;
-      }
-      console.error("[optimize]", error);
-      res.status(500).json({ error: "optimisation failed" });
-    }
-  },
+/**
+ * The same service, sponsored, so a visitor can watch it work without owning
+ * USDC on Arc. Nobody has a wallet on a web page, and asking a reviewer to
+ * acquire mainnet USDC before they can see anything would mean nobody ever
+ * does.
+ *
+ * The receipt is written exactly as it is for a paying caller and names the
+ * provider as payer, which is the truth: this one was paid for by us.
+ */
+const demoGuard = createDemoGuard({
+  client: createPublicClient({ chain: arcChain(network), transport: http(network.rpcUrl) }),
+  address: writer.providerAddress,
+  perIpPerDay: 5,
+  globalPerDay: 200,
+  // Leave roughly a dollar behind so paying requests keep getting receipts
+  // after the demo allowance is spent.
+  minBalanceWei: parseUnits("1", 18),
+});
+
+app.get("/demo/status", (_req, res) => {
+  void demoGuard.status().then((state) => res.json(state));
+});
+
+app.post(
+  "/demo/optimize",
+  demoBody,
+  demoGuard.middleware,
+  withReceipt({
+    writer,
+    payer: writer.providerAddress,
+    onError: (error) => console.error("[demo receipt]", error),
+  }),
+  handleOptimize,
 );
 
 app.listen(port, () => {

@@ -40,6 +40,17 @@ export interface WithReceiptOptions {
    */
   getInput?: (req: Request) => Bytes;
   /**
+   * Who to record as having paid. Defaults to the payer the payment
+   * middleware verified.
+   *
+   * Override it for routes that are served without a payment — a sponsored
+   * free trial, say. The receipt stays exactly as real and as checkable; it
+   * just names whoever actually footed the bill, which on a sponsored request
+   * is the provider. Recording a zero address instead would produce something
+   * that looks like evidence and establishes nothing.
+   */
+  payer?: Address | ((req: Request) => Address | undefined);
+  /**
    * Fail the request when the receipt cannot be written.
    *
    * Defaults to false, and the default is the uncomfortable choice. The buyer
@@ -62,14 +73,18 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
     res: Response,
     next: NextFunction,
   ): void {
-    const payer = readPayer(req);
+    const payer =
+      typeof options.payer === "function"
+        ? options.payer(req)
+        : (options.payer ?? readPayer(req));
+
     if (!payer) {
       // No payment context means this middleware is mounted in the wrong
       // place. Saying so beats emitting receipts with a zero payer, which
       // would look valid and prove nothing.
       next(
         new Error(
-          "arcproof: no verified payment on the request. Mount withReceipt() after gateway.require().",
+          "arcproof: no verified payment on the request. Mount withReceipt() after gateway.require(), or pass `payer` for a sponsored route.",
         ),
       );
       return;
