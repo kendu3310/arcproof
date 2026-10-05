@@ -38,8 +38,19 @@ if (!registry) {
 }
 
 const provider = privateKeyToAccount(privateKey).address;
-// Stands in for the buyer. Only the address matters to a receipt.
-const payer = "0x09311F49F9C8473E1AAA8165F4FD84780912bdDc";
+
+/**
+ * Stands in for the buyer; only the address matters to a receipt.
+ *
+ * Read from .env rather than written here. A personal address baked into a
+ * public repository is not a secret, but it does permanently tie that wallet
+ * to this project in something search engines index, and nobody chooses that
+ * on purpose.
+ */
+const payer =
+  read("BUYER_PRIVATE_KEY") !== undefined
+    ? privateKeyToAccount(read("BUYER_PRIVATE_KEY")).address
+    : provider;
 
 const input = Buffer.from("a 40MB model, pretend", "utf8");
 const output = Buffer.from("a 12MB model, pretend", "utf8");

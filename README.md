@@ -76,6 +76,7 @@ Requires **Node 22+** (the code runs TypeScript directly via `--experimental-str
 git clone https://github.com/kendu3310/arcproof
 cd arcproof
 npm install
+git config core.hooksPath .githooks        # refuses to commit a key or a .env
 npm test                                   # 22 tests, no network or keys needed
 
 cp .env.example .env

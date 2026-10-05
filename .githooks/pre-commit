@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# Refuse to commit secrets.
+#
+# The repository is public and gas on Arc is paid in USDC, so a leaked key
+# drains real money. Bots scan new public commits within seconds, and a key is
+# compromised the moment it is pushed — deleting the commit afterwards does not
+# help, because it has already been read.
+#
+# .gitignore is the first line of defence and this is the second, for the cases
+# .gitignore does not cover: `git add -f`, a key pasted into a source file, a
+# rewritten .gitignore.
+#
+# Enabled by: git config core.hooksPath .githooks
+
+# This directory is excluded throughout: it is the scanner, and its own
+# patterns would otherwise match themselves. (They did, on the first run.)
+SCOPE='. :(exclude).githooks/'
+
+staged=$(git diff --cached --name-only --diff-filter=ACM -- $SCOPE)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+# 1. Environment files. .env.example is the only one meant to be tracked.
+for file in $staged; do
+  case "$file" in
+    .env.example) ;;
+    .env|.env.*|*/.env|*/.env.*)
+      echo "BLOCKED: $file holds live credentials and must not be committed."
+      fail=1
+      ;;
+  esac
+done
+
+# 2. A private key assigned in any staged file.
+if git diff --cached -U0 -- $SCOPE | grep -nE '^\+.*(PRIVATE_KEY|SECRET|MNEMONIC)[[:space:]]*[=:][[:space:]]*["'"'"']?0x[0-9a-fA-F]{40,}' >/dev/null 2>&1; then
+  echo "BLOCKED: a staged change assigns something key-shaped to a PRIVATE_KEY/SECRET/MNEMONIC name."
+  git diff --cached -U0 -- $SCOPE | grep -nE '^\+.*(PRIVATE_KEY|SECRET|MNEMONIC)[[:space:]]*[=:]' | head -3
+  fail=1
+fi
+
+# 3. An embedded PEM key.
+if git diff --cached -U0 -- $SCOPE | grep -E '^\+.*-----BEGIN .*PRIVATE KEY-----' >/dev/null 2>&1; then
+  echo "BLOCKED: a staged change embeds a PEM private key."
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "Nothing was committed. Remove the secret, then commit again."
+  echo "If this is a false positive: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
