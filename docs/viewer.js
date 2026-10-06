@@ -75,7 +75,18 @@ export async function renderPair(container, before, after, labels = {}) {
     // camera inside or far outside the model. Rather than leave anyone
     // guessing, the first few frames are sampled and, if nothing was drawn,
     // the numbers that would explain it are put on screen.
-    if (++frames === 8) report(container, left, a.scene);
+    if (++frames === 8) {
+      // Wrapped: a throw inside the probe would otherwise kill the loop and
+      // leave exactly the silence it exists to break.
+      try {
+        report(container, left, a.scene);
+      } catch (error) {
+        const note = document.createElement("p");
+        note.className = "hint";
+        note.textContent = `Preview diagnostics failed: ${error.message}`;
+        container.appendChild(note);
+      }
+    }
   };
   tick();
 
@@ -223,7 +234,7 @@ function report(container, pane, scene) {
   const width = pane.renderer.domElement.width;
   const height = pane.renderer.domElement.height;
 
-  let drew = false;
+  let drew = "unknown";
   if (width > 0 && height > 0 && !gl.isContextLost()) {
     const size = 16;
     const pixels = new Uint8Array(size * size * 4);
@@ -232,10 +243,12 @@ function report(container, pane, scene) {
       Math.max(0, (height >> 1) - size / 2),
       size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels,
     );
-    drew = pixels.some((channel) => channel !== 0);
+    drew = pixels.some((channel) => channel !== 0) ? "yes" : "no";
   }
-  if (drew) return;
 
+  // Printed every time, not only on failure. A diagnostic that stays silent
+  // when it finds nothing wrong is indistinguishable from one that never ran,
+  // and that ambiguity has already cost a round trip.
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
@@ -250,7 +263,7 @@ function report(container, pane, scene) {
   const note = document.createElement("p");
   note.className = "hint";
   note.textContent =
-    `Nothing was drawn. buffer ${width}x${height}px, css ` +
+    `Preview: drew ${drew}. buffer ${width}x${height}px, css ` +
     `${pane.canvas.clientWidth}x${pane.canvas.clientHeight}px, ` +
     `context ${gl.isContextLost() ? "LOST" : "ok"}, ` +
     `${meshes} mesh(es) ${textured} textured, ` +
