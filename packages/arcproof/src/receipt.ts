@@ -75,6 +75,25 @@ export interface ReceiptWriterOptions {
   confirmationTimeoutMs?: number;
 }
 
+/**
+ * Did this fail before the transaction reached the mempool?
+ *
+ * Only then is a retry safe. viem surfaces these as message text rather than
+ * typed errors, so matching on the text is what is available.
+ */
+function isPreSubmitFailure(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    message.includes("nonce") ||
+    message.includes("replacement transaction underpriced") ||
+    message.includes("already known") ||
+    message.includes("fetch failed") ||
+    message.includes("socket") ||
+    message.includes("econnreset") ||
+    message.includes("timeout") && message.includes("request")
+  );
+}
+
 export function arcChain(network: ArcNetwork): Chain {
   return defineChain({
     id: network.chainId,
@@ -135,6 +154,25 @@ export class ReceiptWriter {
   }
 
   async #record(data: ReceiptData): Promise<Hex> {
+    try {
+      return await this.#submit(data);
+    } catch (error) {
+      // One retry, and only for failures that happen before the transaction
+      // is accepted — a stale nonce, a dropped RPC connection. Those are
+      // ordinary when two instances briefly share a wallet, which is exactly
+      // what a rolling redeploy produces.
+      //
+      // Nothing is retried once a transaction is in flight. The registry
+      // rejects a duplicate requestId, so a second attempt after a successful
+      // first one reverts, and the buyer would be told the delivery was
+      // unproven when it was in fact already proven.
+      if (!isPreSubmitFailure(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return await this.#submit(data);
+    }
+  }
+
+  async #submit(data: ReceiptData): Promise<Hex> {
     const fees = await this.#publicClient.estimateFeesPerGas().catch(() => null);
 
     // Arc's mempool enforces a 20 Gwei floor on maxFeePerGas. Below it a

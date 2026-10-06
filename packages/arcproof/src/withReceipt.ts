@@ -143,10 +143,14 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
             res.statusCode = 502;
             return;
           }
-          res.setHeader(
-            RECEIPT_HEADERS.error,
-            String(error instanceof Error ? error.message : error).slice(0, 200),
-          );
+          // Always a non-empty reason. An empty header reads to the caller
+          // exactly like no header at all, which is the difference between
+          // "the provider says it could not record this" and "something ate
+          // the headers in transit" — two problems with different fixes.
+          const reason =
+            (error instanceof Error ? error.message : String(error)).trim() ||
+            "the receipt write failed without a message";
+          res.setHeader(RECEIPT_HEADERS.error, reason.slice(0, 200));
         })
         .finally(() => {
           if (strict && res.statusCode === 502) {

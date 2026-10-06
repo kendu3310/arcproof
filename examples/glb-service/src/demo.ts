@@ -13,11 +13,23 @@
  */
 
 import type { Request, Response, NextFunction, RequestHandler } from "express";
-import type { PublicClient, Address } from "viem";
+import type { Address } from "viem";
 import { formatUnits } from "viem";
 
+/**
+ * Just enough of a public client to read one balance.
+ *
+ * Asking for viem's full `PublicClient` drags in generics that differ between
+ * what `createPublicClient` returns and what the alias defaults to, and the
+ * resulting error says only that two unrelated types share a name. The guard
+ * needs one method, so it asks for one method.
+ */
+export interface BalanceReader {
+  getBalance(args: { address: Address }): Promise<bigint>;
+}
+
 export interface DemoGuardOptions {
-  client: PublicClient;
+  client: BalanceReader;
   /** The wallet that pays for demo receipts. */
   address: Address;
   /** Per-visitor daily allowance. */

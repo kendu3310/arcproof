@@ -271,8 +271,18 @@ async function runDemo(file) {
 
     if (!txHash) {
       mark(1, "fail");
-      el("demoDetail").innerHTML =
-        `<div class="verdict bad">The file came back, but no receipt was recorded${receiptError ? `: ${receiptError}` : ""}. The bytes are fine; this exchange is simply unproven.</div>`;
+      // Two different problems arrive here and they need different answers.
+      // The service saying it could not record one is usually transient — a
+      // redeploy briefly runs two instances that share a wallet and collide
+      // on nonces. No header at all means something between here and the
+      // service dropped them, and retrying will not help.
+      el("demoDetail").innerHTML = receiptError
+        ? `<div class="verdict bad">The file is fine, but the service could not record a receipt for it:
+             <span class="mono">${receiptError}</span>
+             This is usually momentary. Try the same file again.</div>`
+        : `<div class="verdict bad">The file came back, but no receipt header arrived with it, so there
+             is nothing to check it against. The bytes are unaffected; this exchange is simply unproven.
+             A proxy or extension stripping response headers will do this.</div>`;
       return;
     }
     mark(1, "done");
