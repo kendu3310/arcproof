@@ -210,8 +210,16 @@ function mount(pane, gltf) {
     centre.y + radius * 0.35,
     centre.z + radius * 0.82,
   );
-  pane.camera.near = extent / 1000;
-  pane.camera.far = extent * 1000;
+  // Keep the near/far ratio modest. These were extent/1000 and extent*1000,
+  // a span of a million to one, and that is the one change separating the
+  // build where the model was visible from the build where it was not.
+  // Depth precision is distributed hyperbolically, so a huge far plane spends
+  // almost the entire buffer on the first fraction of the range and leaves
+  // everything beyond it crowded into the last few values — where it can fail
+  // the depth test against a cleared buffer outright. Tying both planes to the
+  // camera distance keeps the ratio near a thousand whatever the model's scale.
+  pane.camera.near = Math.max(radius / 100, 1e-4);
+  pane.camera.far = radius * 100;
   pane.camera.updateProjectionMatrix();
 
   // Bound the zoom. Without this the wheel pushes the camera inside the model
