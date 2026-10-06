@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>arcproof</title>
 <meta name="description" content="On-chain receipts for paid API calls on Arc. Circle's SDK settles the payment; arcproof proves what was delivered for it.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+  }
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js" integrity="sha512-+4GGZeGjxh3dBqq5Nk+6oLfcF3o6s0CyOuvEA0YPFvqsUerfG767qq8/bxJEBSUxcbRxPL6ZqnyDrNwCUdrvRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root {
@@ -75,6 +83,14 @@
   .steps li.fail::before { content:"●"; color:var(--bad); }
   footer { margin-top:72px; padding-top:20px; border-top:1px solid var(--border); color:var(--muted); font-size:.85rem; }
   hr { border:0; border-top:1px solid var(--border); margin:40px 0; }
+  .viewers { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+  @media (max-width:560px) { .viewers { grid-template-columns:1fr; } }
+  .viewer { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface); }
+  .viewer canvas { display:block; width:100%; touch-action:none; cursor:grab; }
+  .viewer canvas:active { cursor:grabbing; }
+  .viewer-title { font-size:.78rem; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--border); }
+  .viewer-caption { font-family:var(--mono); font-size:.72rem; color:var(--muted); padding:8px 12px; border-top:1px solid var(--border); }
+  .hint { font-size:.84rem; color:var(--muted); margin-top:8px; }
 </style>
 </head>
 <body>
@@ -269,12 +285,58 @@ async function runDemo(file) {
           : "The receipt does not match these bytes. Something changed between the service and your browser."}
         <span class="mono">sent     ${inputHash}\nreceived ${outputHash}</span>
       </div>
+      <div id="viewerBox"></div>
       <p style="margin-top:14px"><a href="${url}" download="optimized.glb"><button>Download the optimised file</button></a></p>
       ${report.requiresExtensions?.length ? `<p class="muted">Needs <code>${report.requiresExtensions.join("</code>, <code>")}</code> to open — most modern engines support it; <code>?textureFormat=png</code> is available for older ones.</p>` : ""}`;
 
+    void showModels(input, output, report);
     await loadDemoStatus();
   } catch (error) {
     el("demoDetail").innerHTML = `<div class="verdict bad">${error.message}</div>`;
+  }
+}
+
+/**
+ * Draw both models and re-count their geometry here, in the page.
+ *
+ * The service claims it removed no geometry. This counts the triangles in what
+ * actually arrived and checks that claim independently — the whole project is
+ * about not taking a provider's word for it, and a viewer that reprinted the
+ * header would be doing exactly that.
+ *
+ * three.js is a large download, so it is only fetched once there is something
+ * to look at.
+ */
+async function showModels(before, after, report) {
+  const box = el("viewerBox");
+  if (!box) return;
+  box.innerHTML = `<p class="hint">Loading the 3D preview…</p>`;
+
+  try {
+    const { renderPair } = await import("./viewer.js");
+    const counts = await renderPair(box, before, after);
+
+    const held =
+      counts.before.triangles === counts.after.triangles &&
+      counts.before.vertices === counts.after.vertices;
+
+    const agrees =
+      report.trianglesIn === counts.before.triangles &&
+      report.trianglesOut === counts.after.triangles;
+
+    box.insertAdjacentHTML(
+      "beforeend",
+      `<p class="hint">Drag either model; both turn together. These counts were taken from the
+       geometry your browser just loaded, not from anything the service said.
+       ${held
+         ? "They are identical on both sides — nothing was thrown away to make the file smaller."
+         : "<strong>They differ. Geometry was altered.</strong>"}
+       ${agrees ? "" : " <strong>They also disagree with the service's own report.</strong>"}</p>`,
+    );
+  } catch (error) {
+    // A preview that will not load says nothing about whether the receipt is
+    // sound, so it must not read like a verification failure.
+    box.innerHTML = `<p class="hint">The 3D preview could not load (${error.message}). The receipt above is unaffected.</p>`;
   }
 }
 
