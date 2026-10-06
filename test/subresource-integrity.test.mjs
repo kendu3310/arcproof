@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { createContext, runInContext } from "node:vm";
 
 const page = readFileSync(
   resolve(import.meta.dirname, "../docs/index.html"),
@@ -70,3 +71,61 @@ for (const { src, integrity } of scripts) {
     );
   });
 }
+
+/**
+ * A correct hash only guarantees the right file arrives. It says nothing about
+ * calling it correctly, and the two failures look identical from the page: the
+ * script loads, the first line throws, and every handler dies with it.
+ *
+ * js-sha3's UMD build assigns each function straight onto window. There is no
+ * `sha3` namespace object in a browser — that form belongs to CommonJS — so
+ * this loads the real file the way a browser would and checks the page is
+ * using a name it actually exports.
+ */
+test("the page calls the hash library by a name it really exports", async (t) => {
+  const script = scripts.find(({ src }) => src.includes("js-sha3"));
+  if (!script) {
+    t.skip("js-sha3 is no longer pinned on the page");
+    return;
+  }
+
+  let code;
+  try {
+    const response = await fetch(script.src, { signal: AbortSignal.timeout(30_000) });
+    code = await response.text();
+  } catch (error) {
+    t.skip(`could not reach ${script.src}: ${error.message}`);
+    return;
+  }
+
+  // A browser is window plus no module system. Give it exactly that.
+  const windowObject = {};
+  const sandbox = { window: windowObject, self: windowObject };
+  sandbox.globalThis = sandbox;
+  createContext(sandbox);
+  runInContext(code, sandbox);
+
+  assert.equal(
+    typeof windowObject.keccak256,
+    "function",
+    "the browser build no longer exports keccak256",
+  );
+  assert.equal(
+    typeof windowObject.sha3,
+    "undefined",
+    "a sha3 namespace now exists; the page could use it, but check before switching",
+  );
+
+  // The canonical keccak of empty input, as a last guard that this is the
+  // Ethereum variant rather than NIST SHA-3.
+  assert.equal(
+    windowObject.keccak256(new Uint8Array()),
+    "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+  );
+
+  const body = page.split("<script>").pop();
+  assert.ok(
+    !/\bsha3\.keccak256\s*\(/.test(body),
+    "the page calls sha3.keccak256(), which is undefined in a browser",
+  );
+});

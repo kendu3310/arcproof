@@ -153,7 +153,13 @@ const EVENT_SIG = "Receipt(bytes32,address,address,bytes32,bytes32,uint64,uint64
 // then referencing it at the top level throws and takes every handler on the
 // page with it: nothing renders, nothing responds, and nothing says why. One
 // such failure has already shipped, so this one announces itself.
-if (typeof sha3 === "undefined" || typeof sha3.keccak256 !== "function") {
+// js-sha3's UMD build assigns each hash function straight onto window — there
+// is no `sha3` namespace object in a browser, only `window.keccak256`. The
+// `keccak256(...)` form is the CommonJS one, and reaching for it here
+// throws before anything on the page has a chance to run.
+const keccak256 = globalThis.keccak256;
+
+if (typeof keccak256 !== "function") {
   document.querySelector(".wrap").insertAdjacentHTML(
     "afterbegin",
     `<div class="verdict bad" style="margin-bottom:24px">
@@ -166,7 +172,7 @@ if (typeof sha3 === "undefined" || typeof sha3.keccak256 !== "function") {
   throw new Error("js-sha3 unavailable");
 }
 
-const TOPIC0 = "0x" + sha3.keccak256(EVENT_SIG);
+const TOPIC0 = "0x" + keccak256(EVENT_SIG);
 
 let config = null;
 let current = null;
@@ -271,8 +277,8 @@ async function runDemo(file) {
     }
     mark(1, "done");
 
-    const inputHash = "0x" + sha3.keccak256(input);
-    const outputHash = "0x" + sha3.keccak256(output);
+    const inputHash = "0x" + keccak256(input);
+    const outputHash = "0x" + keccak256(output);
     mark(2, "done");
 
     const receipt = await loadReceipt(txHash);
@@ -467,7 +473,7 @@ async function checkAgainstReceipt(file) {
     return;
   }
 
-  const hash = "0x" + sha3.keccak256(new Uint8Array(await file.arrayBuffer()));
+  const hash = "0x" + keccak256(new Uint8Array(await file.arrayBuffer()));
 
   if (hash === current.inputHash.toLowerCase()) {
     show(true, `This is exactly the file that was sent for ${short(current.txHash)}.`, hash);
