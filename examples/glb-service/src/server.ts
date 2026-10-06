@@ -30,8 +30,8 @@ import { createDemoGuard } from "./demo.ts";
 const network: ArcNetwork =
   process.env.ARC_NETWORK === "arc" ? arcMainnet : arcTestnet;
 
-const sellerAddress = required("SELLER_ADDRESS") as Address;
-const privateKey = required("PROVIDER_PRIVATE_KEY") as Hex;
+const sellerAddress = requiredAddress("SELLER_ADDRESS");
+const privateKey = requiredHexKey("PROVIDER_PRIVATE_KEY");
 const registry = (registryFromEnv(network) ??
   fail(
     `${registryEnvKey(network)} is not set. Deploy the registry to ${network.name} first:\n` +
@@ -208,6 +208,45 @@ function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) fail(`${name} is not set. Check .env at the repository root.`);
   return value as string;
+}
+
+/**
+ * Validate a private key at startup, with a message that says what is wrong.
+ *
+ * Passed straight to viem, a malformed key surfaces as "invalid private key,
+ * expected hex or 32 bytes, got string" from inside elliptic-curve code —
+ * eight frames deep, naming neither the variable nor the actual problem. The
+ * usual causes are a missing 0x prefix or quotes picked up from a dashboard
+ * paste, and both are two seconds to fix once you are told which one it is.
+ */
+function requiredHexKey(name: string): Hex {
+  const raw = required(name).replace(/^["']|["']$/g, "").trim();
+
+  if (!raw.startsWith("0x")) {
+    fail(
+      `${name} must start with 0x. Got ${raw.length} characters beginning "${raw.slice(0, 4)}…".
+` +
+        (/^[0-9a-fA-F]{64}$/.test(raw)
+          ? `It looks like a valid key with the prefix missing — set it to 0x${raw.slice(0, 4)}…`
+          : `Run: node scripts/copy-key.mjs`),
+    );
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(raw)) {
+    fail(
+      `${name} is not a 32-byte hex key. Expected 0x followed by 64 hex characters; got ${raw.length} characters.
+` +
+        `A truncated paste is the usual cause. Run: node scripts/copy-key.mjs`,
+    );
+  }
+  return raw as Hex;
+}
+
+function requiredAddress(name: string): Address {
+  const raw = required(name).replace(/^["']|["']$/g, "").trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(raw)) {
+    fail(`${name} is not an address. Expected 0x followed by 40 hex characters; got "${raw}".`);
+  }
+  return raw as Address;
 }
 
 function fail(message: string): never {
