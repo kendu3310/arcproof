@@ -56,6 +56,7 @@ export async function renderPair(container, before, after, labels = {}) {
   }
 
   let frame = 0;
+  let frames = 0;
   const tick = () => {
     frame = requestAnimationFrame(tick);
 
@@ -68,6 +69,13 @@ export async function renderPair(container, before, after, labels = {}) {
 
     left.renderer.render(left.scene, left.camera);
     right.renderer.render(right.scene, right.camera);
+
+    // An empty panel and a page that silently failed look identical, and the
+    // reasons are many: a zero-size drawing buffer, a lost WebGL context, a
+    // camera inside or far outside the model. Rather than leave anyone
+    // guessing, the first few frames are sampled and, if nothing was drawn,
+    // the numbers that would explain it are put on screen.
+    if (++frames === 8) report(container, left, a.scene);
   };
   tick();
 
@@ -201,6 +209,56 @@ function mount(pane, gltf) {
   pane.controls.minDistance = radius * 0.35;
   pane.controls.maxDistance = radius * 4;
   pane.controls.update();
+}
+
+/**
+ * Did anything actually get drawn? If not, say what the state was.
+ *
+ * readPixels must run in the same frame as the render: without
+ * preserveDrawingBuffer the buffer is cleared once the frame is composited,
+ * and a later read returns transparent black for a perfectly good picture.
+ */
+function report(container, pane, scene) {
+  const gl = pane.renderer.getContext();
+  const width = pane.renderer.domElement.width;
+  const height = pane.renderer.domElement.height;
+
+  let drew = false;
+  if (width > 0 && height > 0 && !gl.isContextLost()) {
+    const size = 16;
+    const pixels = new Uint8Array(size * size * 4);
+    gl.readPixels(
+      Math.max(0, (width >> 1) - size / 2),
+      Math.max(0, (height >> 1) - size / 2),
+      size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels,
+    );
+    drew = pixels.some((channel) => channel !== 0);
+  }
+  if (drew) return;
+
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  let meshes = 0;
+  let textured = 0;
+  scene.traverse((node) => {
+    if (!node.isMesh) return;
+    meshes += 1;
+    if (node.material?.map) textured += 1;
+  });
+
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent =
+    `Nothing was drawn. buffer ${width}x${height}px, css ` +
+    `${pane.canvas.clientWidth}x${pane.canvas.clientHeight}px, ` +
+    `context ${gl.isContextLost() ? "LOST" : "ok"}, ` +
+    `${meshes} mesh(es) ${textured} textured, ` +
+    `bounds ${size.x.toFixed(2)}x${size.y.toFixed(2)}x${size.z.toFixed(2)} ` +
+    `at ${centre.x.toFixed(2)},${centre.y.toFixed(2)},${centre.z.toFixed(2)}, ` +
+    `camera ${pane.camera.position.distanceTo(pane.controls.target).toFixed(2)} away, ` +
+    `near ${pane.camera.near.toFixed(4)} far ${pane.camera.far.toFixed(0)}.`;
+  container.appendChild(note);
 }
 
 /** Count triangles and vertices from loaded geometry, not from any header. */
