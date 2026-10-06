@@ -13,7 +13,7 @@
   }
 }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js" integrity="sha512-+4GGZeGjxh3dBqq5Nk+6oLfcF3o6s0CyOuvEA0YPFvqsUerfG767qq8/bxJEBSUxcbRxPL6ZqnyDrNwCUdrvRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js" integrity="sha512-l8ZGwlcmmNhyMXRweX0SqrZHIdfK3UgOSJsdSK5ozqlXOsZDogZFYp+TUzzI7pFYGUmzTCKZjS1q0nHiWOvs0g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root {
     --bg:#fff; --surface:#f7f7f8; --raised:#fff; --border:#e3e3e6;
@@ -147,6 +147,25 @@
 
 <script>
 const EVENT_SIG = "Receipt(bytes32,address,address,bytes32,bytes32,uint64,uint64,uint64)";
+
+// Everything here depends on keccak256 from a CDN. If that script does not run
+// — a blocked CDN, a network that rewrites assets, a stale integrity hash —
+// then referencing it at the top level throws and takes every handler on the
+// page with it: nothing renders, nothing responds, and nothing says why. One
+// such failure has already shipped, so this one announces itself.
+if (typeof sha3 === "undefined" || typeof sha3.keccak256 !== "function") {
+  document.querySelector(".wrap").insertAdjacentHTML(
+    "afterbegin",
+    `<div class="verdict bad" style="margin-bottom:24px">
+       The hashing library did not load, so nothing on this page can verify anything.
+       It is fetched from cdnjs.cloudflare.com — a blocked CDN or an extension that
+       rewrites scripts will do this. The receipts themselves are unaffected and
+       remain checkable from the repository.
+     </div>`,
+  );
+  throw new Error("js-sha3 unavailable");
+}
+
 const TOPIC0 = "0x" + sha3.keccak256(EVENT_SIG);
 
 let config = null;
