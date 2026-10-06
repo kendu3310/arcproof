@@ -2,7 +2,9 @@
 
 **On-chain receipts for paid API calls on Arc.** Circle's x402 SDK settles the payment. arcproof proves what was delivered for it.
 
-Live on Arc mainnet · [Verify a receipt yourself](https://kendu3310.github.io/arcproof/)
+Live on Arc mainnet.
+
+**[Try it](https://kendu3310.github.io/arcproof/)** — drop in a `.glb`, watch a receipt land on mainnet, and let your own browser check it. No wallet needed; those runs are sponsored. The service sleeps when idle, so the first request after a quiet spell takes about a minute to wake.
 
 ---
 
