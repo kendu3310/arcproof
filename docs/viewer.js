@@ -1,9 +1,9 @@
 /**
  * Side-by-side 3D preview of a model before and after optimisation.
  *
- * The page already says "12 triangles in, 12 triangles out". That is a number
- * a visitor has to take on faith. Seeing both models turn together, identical,
- * while one of them is a twentieth of the size, is the same claim in a form
+ * The page already says "9,216 triangles in, 9,216 triangles out". That is a
+ * number a visitor has to take on faith. Seeing both models turn together,
+ * identical, while one is a seventh of the size, is the same claim in a form
  * that needs no faith at all.
  *
  * Triangles are counted from the geometry this module actually loaded, not
@@ -19,6 +19,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const loader = new GLTFLoader();
 
 export async function renderPair(container, before, after, labels = {}) {
+  container.stopPreview?.();
   container.innerHTML = "";
   container.className = "viewers";
 
@@ -30,11 +31,57 @@ export async function renderPair(container, before, after, labels = {}) {
   mount(left, a);
   mount(right, b);
 
-  // Drag either model and both turn. Comparing two shapes is only possible
-  // from the same angle, and asking someone to line up two cameras by hand is
-  // asking them not to bother.
-  link(left, right);
-  link(right, left);
+  /**
+   * One camera drives both panes.
+   *
+   * An earlier version linked them through each other's `change` events, in
+   * both directions, while both auto-rotated. Each pane then overwrote the
+   * other every frame and the distance to the target drifted: the models
+   * slowly shrank, disappeared, and came back. Only one set of controls is
+   * live at a time now, and the other is a copy of it.
+   */
+  let leader = left;
+  let follower = right;
+  let idle = true;
+
+  for (const [pane, other] of [
+    [left, right],
+    [right, left],
+  ]) {
+    pane.controls.addEventListener("start", () => {
+      leader = pane;
+      follower = other;
+      idle = false;
+    });
+  }
+
+  let frame = 0;
+  const tick = () => {
+    frame = requestAnimationFrame(tick);
+
+    leader.controls.autoRotate = idle;
+    leader.controls.update();
+
+    follower.camera.position.copy(leader.camera.position);
+    follower.camera.quaternion.copy(leader.camera.quaternion);
+    follower.controls.target.copy(leader.controls.target);
+
+    left.renderer.render(left.scene, left.camera);
+    right.renderer.render(right.scene, right.camera);
+  };
+  tick();
+
+  // Dropping a second file replaces these panes. Without this the old loop
+  // keeps running against detached canvases, and WebGL contexts are a limited
+  // resource — a browser silently drops the oldest once enough pile up.
+  container.stopPreview = () => {
+    cancelAnimationFrame(frame);
+    for (const pane of [left, right]) {
+      pane.controls.dispose();
+      pane.observer.disconnect();
+      pane.renderer.dispose();
+    }
+  };
 
   const counts = { before: count(a.scene), after: count(b.scene) };
   left.caption.textContent = describe(counts.before);
@@ -71,10 +118,9 @@ function createPane(container, title) {
 
   const scene = new THREE.Scene();
 
-  // Flat ambient light makes a cube look like a cut-out: every face receives
-  // the same amount and the silhouette is all you can see. Most of the light
-  // here is directional and off-axis so adjacent faces land at visibly
-  // different brightnesses, which is what reads as volume.
+  // Flat ambient light makes a rounded object look like a cut-out: every face
+  // receives the same amount and only the silhouette survives. Most of the
+  // light here is directional and off-axis, so curvature reads as curvature.
   scene.add(new THREE.AmbientLight(0xffffff, 0.35));
   scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x30302e, 0.8));
 
@@ -86,7 +132,6 @@ function createPane(container, title) {
   fill.position.set(-5, 0.5, 2);
   scene.add(fill);
 
-  // A rim from behind separates the model from the panel background.
   const rim = new THREE.DirectionalLight(0xffffff, 1.1);
   rim.position.set(-2, 3, -5);
   scene.add(rim);
@@ -95,39 +140,31 @@ function createPane(container, title) {
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
-  // A still image of a symmetrical object reads as a flat shape no matter how
-  // it is lit. Motion is what makes it legible as a solid, so it turns on its
-  // own until someone takes over.
-  controls.autoRotate = true;
   controls.autoRotateSpeed = 1.1;
-  controls.addEventListener("start", () => { controls.autoRotate = false; });
-
-  const pane_ = { pane, canvas, caption, renderer, scene, camera, controls };
 
   const resize = () => {
     const width = pane.clientWidth;
-    const height = Math.max(200, Math.round(width * 0.8));
+    const height = Math.max(240, Math.round(width * 0.85));
     renderer.setSize(width, height, false);
+    // setSize with updateStyle=false leaves the CSS height unset, so the
+    // element collapses to its intrinsic ratio rather than the size we asked
+    // the renderer for.
+    canvas.style.height = `${height}px`;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   };
-  new ResizeObserver(resize).observe(pane);
+  const observer = new ResizeObserver(resize);
+  observer.observe(pane);
   resize();
 
-  renderer.setAnimationLoop(() => {
-    controls.update();
-    renderer.render(scene, camera);
-  });
-
-  return pane_;
+  return { pane, canvas, caption, renderer, scene, camera, controls, observer };
 }
 
 function mount(pane, gltf) {
   // Render both faces. A preview exists to show the visitor their model, and
   // plenty of real assets have inverted winding or single-sided planes that
   // would otherwise come back as an empty panel — indistinguishable from a
-  // broken page. Correctness of winding is the asset's business, not this
-  // viewer's.
+  // broken page. Whether the winding is correct is the asset's business.
   gltf.scene.traverse((node) => {
     if (!node.isMesh) return;
     for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
@@ -143,29 +180,27 @@ function mount(pane, gltf) {
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
   const extent = Math.max(size.x, size.y, size.z) || 1;
-  const distance = (extent / 2) / Math.tan((pane.camera.fov * Math.PI) / 360);
+
+  // The distance at which the largest dimension fills the view, plus a small
+  // margin so the model does not clip the edges as it turns.
+  const radius = (extent / 2 / Math.tan((pane.camera.fov * Math.PI) / 360)) * 1.3;
 
   pane.controls.target.copy(centre);
-  // Three-quarter view: far enough back that the whole model fits, and off
-  // every axis so more than one face is visible from the first frame.
-  const radius = distance * 1.9;
   pane.camera.position.set(
-    centre.x + radius * 0.55,
-    centre.y + radius * 0.42,
-    centre.z + radius * 0.72,
+    centre.x + radius * 0.45,
+    centre.y + radius * 0.35,
+    centre.z + radius * 0.82,
   );
-  pane.camera.near = extent / 100;
-  pane.camera.far = extent * 100;
+  pane.camera.near = extent / 1000;
+  pane.camera.far = extent * 1000;
   pane.camera.updateProjectionMatrix();
-  pane.controls.update();
-}
 
-function link(source, target) {
-  source.controls.addEventListener("change", () => {
-    target.camera.position.copy(source.camera.position);
-    target.camera.quaternion.copy(source.camera.quaternion);
-    target.controls.target.copy(source.controls.target);
-  });
+  // Bound the zoom. Without this the wheel pushes the camera inside the model
+  // or far enough out that it vanishes, and someone who does that by accident
+  // has no obvious way back.
+  pane.controls.minDistance = radius * 0.35;
+  pane.controls.maxDistance = radius * 4;
+  pane.controls.update();
 }
 
 /** Count triangles and vertices from loaded geometry, not from any header. */
