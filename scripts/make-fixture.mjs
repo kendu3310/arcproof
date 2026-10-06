@@ -136,7 +136,10 @@ for (let v = 0; v < SEG_V; v++) {
   for (let u = 0; u < SEG_U; u++) {
     const a = v * (SEG_U + 1) + u;
     const b = a + SEG_U + 1;
-    indices.push(a, b, a + 1, a + 1, b, b + 1);
+    // Counter-clockwise seen from outside. Reversed, every triangle faces
+    // inward and the sphere renders as nothing at all from the outside —
+    // which is exactly what the first version of this file did.
+    indices.push(a, a + 1, b, a + 1, b + 1, b);
   }
 }
 

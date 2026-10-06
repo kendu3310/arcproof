@@ -123,6 +123,18 @@ function createPane(container, title) {
 }
 
 function mount(pane, gltf) {
+  // Render both faces. A preview exists to show the visitor their model, and
+  // plenty of real assets have inverted winding or single-sided planes that
+  // would otherwise come back as an empty panel — indistinguishable from a
+  // broken page. Correctness of winding is the asset's business, not this
+  // viewer's.
+  gltf.scene.traverse((node) => {
+    if (!node.isMesh) return;
+    for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
+      if (material) material.side = THREE.DoubleSide;
+    }
+  });
+
   pane.scene.add(gltf.scene);
 
   // Frame whatever arrived. Models come in at wildly different scales, and a

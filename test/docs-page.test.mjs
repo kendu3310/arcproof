@@ -66,6 +66,6 @@ test("the published fixture hashes to the digest recorded on chain", () => {
   const fixture = readFileSync(resolve(root, "examples/glb-service/fixtures/sample.glb"));
   assert.equal(
     keccak256(fixture),
-    "0x230617b819a6dab626a2b6c203bcee4765f1f7d7a27af185fe7fdde76e316f83",
+    "0x69fa9f4d1fbb7bcf2dee0607ed1653043c9ffe8577b394d3209837aa7ad3e46a",
   );
 });
