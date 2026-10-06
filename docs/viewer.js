@@ -254,9 +254,11 @@ function report(container, pane, scene) {
     drew = pixels.some((channel) => channel !== 0) ? "yes" : "no";
   }
 
-  // Printed every time, not only on failure. A diagnostic that stays silent
-  // when it finds nothing wrong is indistinguishable from one that never ran,
-  // and that ambiguity has already cost a round trip.
+  // Quiet when the picture is there. It was unconditional while the cause of
+  // a blank panel was still unknown, and it earned that: the line it printed
+  // is what identified the depth-buffer problem. A visitor with a working
+  // preview does not need the numbers, and one without a picture does.
+  if (drew === "yes") return;
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
@@ -271,7 +273,7 @@ function report(container, pane, scene) {
   const note = document.createElement("p");
   note.className = "hint";
   note.textContent =
-    `Preview: drew ${drew}. buffer ${width}x${height}px, css ` +
+    `The preview drew nothing. buffer ${width}x${height}px, css ` +
     `${pane.canvas.clientWidth}x${pane.canvas.clientHeight}px, ` +
     `context ${gl.isContextLost() ? "LOST" : "ok"}, ` +
     `${meshes} mesh(es) ${textured} textured, ` +
