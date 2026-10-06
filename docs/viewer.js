@@ -70,20 +70,37 @@ function createPane(container, title) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 1.6));
 
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
-  key.position.set(3, 5, 4);
+  // Flat ambient light makes a cube look like a cut-out: every face receives
+  // the same amount and the silhouette is all you can see. Most of the light
+  // here is directional and off-axis so adjacent faces land at visibly
+  // different brightnesses, which is what reads as volume.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x30302e, 0.8));
+
+  const key = new THREE.DirectionalLight(0xffffff, 2.6);
+  key.position.set(4, 6, 3);
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xffffff, 0.8);
-  fill.position.set(-4, -1, -3);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.55);
+  fill.position.set(-5, 0.5, 2);
   scene.add(fill);
+
+  // A rim from behind separates the model from the panel background.
+  const rim = new THREE.DirectionalLight(0xffffff, 1.1);
+  rim.position.set(-2, 3, -5);
+  scene.add(rim);
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
+  // A still image of a symmetrical object reads as a flat shape no matter how
+  // it is lit. Motion is what makes it legible as a solid, so it turns on its
+  // own until someone takes over.
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 1.1;
+  controls.addEventListener("start", () => { controls.autoRotate = false; });
 
   const pane_ = { pane, canvas, caption, renderer, scene, camera, controls };
 
@@ -117,7 +134,14 @@ function mount(pane, gltf) {
   const distance = (extent / 2) / Math.tan((pane.camera.fov * Math.PI) / 360);
 
   pane.controls.target.copy(centre);
-  pane.camera.position.set(centre.x + extent * 0.6, centre.y + extent * 0.4, centre.z + distance * 1.5);
+  // Three-quarter view: far enough back that the whole model fits, and off
+  // every axis so more than one face is visible from the first frame.
+  const radius = distance * 1.9;
+  pane.camera.position.set(
+    centre.x + radius * 0.55,
+    centre.y + radius * 0.42,
+    centre.z + radius * 0.72,
+  );
   pane.camera.near = extent / 100;
   pane.camera.far = extent * 100;
   pane.camera.updateProjectionMatrix();

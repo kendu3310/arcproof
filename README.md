@@ -58,7 +58,9 @@ One changed byte on either side and `verified.ok` is `false`. No trust in the pr
 | Deployed at | block 23,587,639 · [tx](https://explorer.arc.io/tx/0x76f5391d0e0bb5ae21caa7ad55e86a826864dd638adb95e41cba60ae8a60f56c) |
 | A real receipt | [`0x1c86d9c2…c1ae`](https://explorer.arc.io/tx/0x1c86d9c233bfc97a4bfe454529983b88fe321d9c81d16ff7365dd9dc2a2cc1ae) |
 
-That receipt records a real job: a buyer paid **$0.02 USDC**, sent a 12.03 MB GLB, received 0.48 MB back, and verified against mainnet that those exact bytes were what the provider committed to. Triangles and vertices: 12 → 12 and 24 → 24.
+That receipt records a real job: a buyer paid **$0.02 USDC**, sent a GLB, received a smaller one back, and verified against mainnet that those exact bytes were what the provider committed to.
+
+The sample model that ships with this repository — a textured globe — goes from **1.97 MB to 0.27 MB**, with **9,216 triangles and 4,753 vertices on both sides**. Not one was removed.
 
 ## What it uses Arc for
 
@@ -107,7 +109,7 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 
 ## Known limits
 
-- **The headline 12 MB → 0.48 MB is flattered by the fixture.** It is 2048px of random noise, the worst case for PNG, so the comparison looks better than real art will.
+- **Ratios depend heavily on the source texture.** The fixture carries a smooth 2048px texture and lands near 14% of its original size. An earlier fixture used random noise — the worst case for PNG — and reached 4%, which flattered the pipeline badly. Treat any single number as a property of the asset, not of the service.
 - **WebP output requires `EXT_texture_webp`.** Loaders without it cannot open the file, so `report.requiresExtensions` says so and `textureFormat: "png"` is available for older engines.
 - **Budget enforcement is client-side.** It stops *this* agent overspending. It is not a custody control.
 - **Receipts are written by the provider.** A provider that never calls the service cannot forge one for you, but the registry is permissionless by design — a receipt from an address you did not pay proves nothing, which is why `verifyReceipt` takes `expectedProvider`.

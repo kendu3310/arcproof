@@ -15,6 +15,12 @@
   },
   "receipts": [
     {
+      "txHash": "0x00183bd715370b3bd2094a4564b35cf5cf0312ede864212a7d996a0f1086fbf9",
+      "service": "/demo/optimize",
+      "note": "1.97 MB textured globe in, 0.27 MB out. 9,216 triangles and 4,753 vertices both ways.",
+      "paidUsd": "0.00"
+    },
+    {
       "txHash": "0x1c86d9c233bfc97a4bfe454529983b88fe321d9c81d16ff7365dd9dc2a2cc1ae",
       "service": "/optimize",
       "note": "12.03 MB GLB in, 0.48 MB out. 12 triangles and 24 vertices both ways.",
