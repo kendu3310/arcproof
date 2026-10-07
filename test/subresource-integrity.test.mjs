@@ -123,7 +123,14 @@ test("the page calls the hash library by a name it really exports", async (t) =>
     "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
   );
 
-  const body = page.split("<script>").pop();
+  // Comments on the page explain this very trap by name, so they have to come
+  // out first — otherwise the warning about the mistake reads as the mistake.
+  const body = page
+    .split("<script>")
+    .pop()
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*(\/\/|\*).*$/gm, "");
+
   assert.ok(
     !/\bsha3\.keccak256\s*\(/.test(body),
     "the page calls sha3.keccak256(), which is undefined in a browser",
