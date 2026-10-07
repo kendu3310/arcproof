@@ -119,14 +119,14 @@
 
   /* ---------------------------------------------------------- the hero --- */
   .hero { text-align:center; padding:4vh 0 0; }
-  .hero .mark { width:clamp(84px,13vw,124px); height:auto; display:block; margin:0 auto -6px; }
+  .hero .mark { width:clamp(84px,13vw,124px); height:auto; display:block; margin:0 auto 14px; }
   .hero h1 { margin:0; line-height:0; }
   /* The supplied wordmark has its halo in the colour channels but not in
      alpha, so the file is the letters only and the glow is drawn here —
      it radiates from the glyphs and so has no edge, which every attempt to
      rescue the baked-in halo did. */
   .hero h1 img {
-    width:min(560px,78vw); height:auto; display:block; margin:0 auto;
+    width:min(520px,74vw); height:auto; display:block; margin:0 auto;
     filter:drop-shadow(0 0 22px rgba(150,190,255,.45)) drop-shadow(0 0 48px rgba(110,150,255,.28));
   }
   .tagline { margin:14px 0 0; color:var(--muted); letter-spacing:.14em; font-size:clamp(.8rem,2.3vw,.98rem); }
