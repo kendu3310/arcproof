@@ -94,6 +94,23 @@ await emit(
   sharp(tile).resize(180, 180).flatten({ background: "#060a18" }).png({ compressionLevel: 9, palette: true, colors: 128 }),
 );
 
+/* -------------------------------------------------------- the step icons --- */
+/**
+ * Rendered at 64px rather than the 26px the drawn line icons used. These are
+ * illustrations, not glyphs: side by side at 26, 40, 56 and 72px, all three
+ * dissolve into a blue smudge below 40 and only resolve from 56 up. Exported
+ * at 3x so they stay sharp on a dense screen.
+ */
+for (const [n, name] of [[1, "step-upload"], [2, "step-process"], [3, "step-prove"]]) {
+  await emit(
+    `${name}.webp`,
+    sharp(join(root, "brand-source", `icon${n}.png`))
+      .trim({ threshold: 6 })
+      .resize(192, 192, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .webp({ quality: 88 }),
+  );
+}
+
 /* ------------------------------------------------------------ social card --- */
 // 1731x909 is 1.904:1 and the card wants 1.905:1, so this is a straight
 // downscale with no crop. The text in it is part of the artwork, which is fine
