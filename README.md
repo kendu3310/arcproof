@@ -146,7 +146,7 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 
 ## Not yet done
 
-**One transaction per receipt does not scale to sub-cent prices.** The fix is to batch: collect receipts for a second or two, write one Merkle root, and hand each buyer its leaf and proof. A batch of N cuts the cost per receipt by N, at the price of the receipt arriving shortly after the bytes rather than with them. Arc's half-second blocks are what make a window that short practical. Not built yet; designed first.
+**One transaction per receipt does not scale to sub-cent prices.** The fix is to batch: collect receipts for a second or two, write one Merkle root, and hand each buyer its leaf and proof. A batch of N cuts the cost per receipt by N, at the price of the receipt arriving shortly after the bytes rather than with them. Arc's half-second blocks are what make a window that short practical. Not built yet — **[the design](design/batched-receipts.md)** comes first, including what it gives up and why.
 
 [ERC-8183](https://eips.ethereum.org/EIPS/eip-8183) job escrow and [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) agent identity are the natural next layers — a receipt is evidence, but it is not yet a dispute mechanism. Both were left out deliberately: Circle's ERC-8183 tutorial targets testnet and the standard is not in Arc's published mainnet address table, and depending on something that may not exist on mainnet was not a risk worth taking for a first proof.
 
@@ -157,7 +157,8 @@ packages/arcproof/     the library: digests, receipt writer, Express middleware,
 contracts/             ReceiptRegistry.sol — one event, replay-protected, no owner
 examples/glb-service/  a real paid service built on it
 examples/buyer-agent/  an agent that pays, verifies, and enforces a budget in code
-docs/                  the published verification page
+docs/                  the published verification page, and published runs under docs/runs/
+design/                proposals not yet built
 scripts/               wallet, funding, deploy and smoke-test helpers
 ```
 
