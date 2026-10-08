@@ -21,8 +21,8 @@ import { fileURLToPath } from "node:url";
 import { createWalletClient, createPublicClient, http, parseUnits, formatUnits } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { GatewayClient } from "@circle-fin/x402-batching/client";
-import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI } from "../packages/arcproof/src/networks.ts";
-import { arcChain } from "../packages/arcproof/src/receipt.ts";
+import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI } from "../packages/aernyth/src/networks.ts";
+import { arcChain } from "../packages/aernyth/src/receipt.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = resolve(root, ".env");

@@ -12,10 +12,10 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { arcMainnet, arcTestnet, registryEnvKey } from "../packages/arcproof/src/networks.ts";
-import { ReceiptWriter } from "../packages/arcproof/src/receipt.ts";
-import { verifyReceipt } from "../packages/arcproof/src/verifyReceipt.ts";
-import { digest, deriveRequestId } from "../packages/arcproof/src/digest.ts";
+import { arcMainnet, arcTestnet, registryEnvKey } from "../packages/aernyth/src/networks.ts";
+import { ReceiptWriter } from "../packages/aernyth/src/receipt.ts";
+import { verifyReceipt } from "../packages/aernyth/src/verifyReceipt.ts";
+import { digest, deriveRequestId } from "../packages/aernyth/src/digest.ts";
 import { privateKeyToAccount } from "viem/accounts";
 import { randomBytes } from "node:crypto";
 

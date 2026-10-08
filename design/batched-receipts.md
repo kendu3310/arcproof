@@ -84,7 +84,7 @@ saving appears exactly where it is needed: at volume.
 
 ## Formats
 
-**EIP-712 domain:** `name "arcproof"`, `version "2"`, `chainId`,
+**EIP-712 domain:** `name "Aernyth"`, `version "2"`, `chainId`,
 `verifyingContract` = the batch registry. Binding the signature to chain and
 contract stops a receipt signed for testnet from being replayed as a mainnet
 one.

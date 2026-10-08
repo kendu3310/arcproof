@@ -621,8 +621,13 @@ async function runDemo(file) {
 
     const output = new Uint8Array(await response.arrayBuffer());
     const report = JSON.parse(response.headers.get("x-glb-report") || "{}");
-    const txHash = response.headers.get("x-arcproof-tx");
-    const receiptError = response.headers.get("x-arcproof-error");
+    // Headers were renamed from x-arcproof-* to x-aernyth-*. The hosted service
+    // can lag a deploy behind this page, so read the new name and fall back to
+    // the old one rather than report a missing receipt that is really there.
+    const header = (name) =>
+      response.headers.get(`x-aernyth-${name}`) ?? response.headers.get(`x-arcproof-${name}`);
+    const txHash = header("tx");
+    const receiptError = header("error");
 
     if (!txHash) {
       mark(1, "fail");

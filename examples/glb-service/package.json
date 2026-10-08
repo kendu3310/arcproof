@@ -1,8 +1,8 @@
 {
-  "name": "@arcproof/glb-service",
+  "name": "@aernyth/glb-service",
   "version": "0.1.0",
   "private": true,
-  "description": "A paid asset-optimisation endpoint on Arc: Circle's SDK takes the payment, arcproof proves the delivery.",
+  "description": "A paid asset-optimisation endpoint on Arc: Circle's SDK takes the payment, Aernyth proves the delivery.",
   "type": "module",
   "scripts": {
     "start": "node --experimental-strip-types --env-file-if-exists=../../.env src/server.ts",
@@ -16,7 +16,7 @@
     "@gltf-transform/functions": "^4.5.1",
     "@x402/core": "^2.28.0",
     "@x402/evm": "^2.28.0",
-    "arcproof": "*",
+    "aernyth": "*",
     "express": "^5.2.1",
     "sharp": "^0.35.5",
     "viem": "^2.47.1"

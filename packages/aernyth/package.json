@@ -1,5 +1,5 @@
 {
-  "name": "arcproof",
+  "name": "aernyth",
   "version": "0.1.0",
   "description": "On-chain receipts for paid API calls on Arc: prove that what was delivered is what was paid for.",
   "license": "Apache-2.0",

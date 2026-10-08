@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 import solc from "solc";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI, registryEnvKey } from "../packages/arcproof/src/networks.ts";
-import { arcChain } from "../packages/arcproof/src/receipt.ts";
+import { arcMainnet, arcTestnet, MIN_MAX_FEE_PER_GAS_WEI, registryEnvKey } from "../packages/aernyth/src/networks.ts";
+import { arcChain } from "../packages/aernyth/src/receipt.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = resolve(root, ".env");

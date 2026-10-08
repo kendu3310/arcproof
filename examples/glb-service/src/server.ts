@@ -2,7 +2,7 @@
  * A paid service on Arc, built from two independent layers.
  *
  *   gateway.require("$0.001")   Circle's SDK — collects the payment
- *   withReceipt({ writer })     arcproof    — proves what was delivered
+ *   withReceipt({ writer })     Aernyth    — proves what was delivered
  *
  * Neither knows about the other. That separation is the point: payment on Arc
  * is a solved problem with an official SDK, so this repository does not
@@ -16,14 +16,15 @@ import { createGatewayMiddleware } from "@circle-fin/x402-batching/server";
 import {
   ReceiptWriter,
   withReceipt,
+  RECEIPT_HEADERS,
   arcMainnet,
   arcTestnet,
   registryFromEnv,
   registryEnvKey,
   type ArcNetwork,
-} from "arcproof";
+} from "aernyth";
 import { createPublicClient, http, parseUnits, type Address, type Hex } from "viem";
-import { arcChain } from "arcproof";
+import { arcChain } from "aernyth";
 import { optimizeGlb, UnsupportedAsset } from "./optimize.ts";
 import { createDemoGuard } from "./demo.ts";
 
@@ -52,7 +53,7 @@ const gateway = createGatewayMiddleware({
   sellerAddress,
   networks: [network.caip2],
   facilitatorUrl,
-  description: "arcproof reference service",
+  description: "Aernyth reference service",
 });
 
 const writer = new ReceiptWriter({ network, registry, privateKey });
@@ -80,9 +81,12 @@ const demoBody = express.raw({ type: "*/*", limit: "24mb" });
 app.use((req, res, next) => {
   res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-headers", "content-type, payment-signature");
+  // Built from the package's own list rather than typed out: a hand-kept copy
+  // already fell behind once, when the payment-nonce header was added and
+  // browsers silently could not read it.
   res.setHeader(
     "access-control-expose-headers",
-    "x-glb-report, x-arcproof-tx, x-arcproof-input, x-arcproof-output, x-arcproof-request-id, x-arcproof-registry, x-arcproof-provider, x-arcproof-error",
+    ["x-glb-report", "payment-response", ...Object.values(RECEIPT_HEADERS)].join(", "),
   );
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
@@ -99,6 +103,10 @@ app.get("/health", (_req, res) => {
     registry,
     provider: writer.providerAddress,
     seller: sellerAddress,
+    // Which commit is actually serving. Render sets this; a build that failed
+    // leaves the previous deploy running, and without this there is no way to
+    // tell from outside that the service is behind the repository.
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? "local",
   });
 });
 

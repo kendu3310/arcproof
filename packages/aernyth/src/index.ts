@@ -1,11 +1,11 @@
 /**
- * arcproof — on-chain receipts for paid API calls on Arc.
+ * Aernyth — on-chain receipts for paid API calls on Arc.
  *
  * Circle's @circle-fin/x402-batching settles the payment. It has no notion of
  * a deliverable: nothing in its public API mentions receipts, attestation or
  * integrity. So a buyer can prove it paid, and cannot prove what it got.
  *
- * arcproof fills exactly that gap and nothing else. It does not handle money.
+ * Aernyth fills exactly that gap and nothing else. It does not handle money.
  */
 
 export {

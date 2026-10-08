@@ -1,6 +1,6 @@
-# arcproof
+# Aernyth
 
-**On-chain receipts for paid API calls on Arc.** Circle's x402 SDK settles the payment. arcproof records what was delivered for it, in a form the provider cannot take back.
+**On-chain receipts for paid API calls on Arc.** Circle's x402 SDK settles the payment. Aernyth records what was delivered for it, in a form the provider cannot take back.
 
 Live on Arc mainnet, behind **[aernyth.com](https://aernyth.com)**.
 
@@ -22,7 +22,7 @@ A buyer can prove it paid. It cannot prove what it received.
 
 That is tolerable while a human is in the loop. A person can open a 3D model and see that the normals are wrong. **An autonomous agent cannot.** It receives bytes, and if they turn out to be bad there is nothing that ties them to the provider: the provider can say it sent something else, and nobody can show otherwise.
 
-arcproof fixes that part and nothing else. It does not touch money, and it does not judge quality — see [what a receipt proves](#what-a-receipt-proves-and-what-it-does-not), which is the section to read before trusting any of this.
+Aernyth fixes that part and nothing else. It does not touch money, and it does not judge quality — see [what a receipt proves](#what-a-receipt-proves-and-what-it-does-not), which is the section to read before trusting any of this.
 
 ## How it works
 
@@ -31,17 +31,17 @@ Two independent middlewares, each doing one job:
 ```ts
 app.post("/optimize",
   gateway.require("$0.02"),     // Circle's SDK — collects the payment
-  withReceipt({ writer }),      // arcproof — proves the delivery
+  withReceipt({ writer }),      // Aernyth — proves the delivery
   optimizeHandler);
 ```
 
-After the handler returns, arcproof hashes the exact request and response bodies, writes both digests to a contract on Arc, and returns the transaction hash in a response header. The buyer hashes its own copies and compares:
+After the handler returns, Aernyth hashes the exact request and response bodies, writes both digests to a contract on Arc, and returns the transaction hash in a response header. The buyer hashes its own copies and compares:
 
 ```ts
 const verified = await verifyReceipt({
   network: arcMainnet,
   registry,
-  txHash: response.headers.get("x-arcproof-tx"),
+  txHash: response.headers.get("x-aernyth-tx"),
   input: whatISent,
   output: whatIGotBack,
 });
@@ -98,7 +98,7 @@ Arc is not a deployment target of convenience here. Three of its properties are 
 
 **Sub-second deterministic finality.** The HTTP response is held until the receipt is mined, so the transaction hash travels back in the headers and the buyer can verify *before* acting on the bytes. On a chain with twelve-second blocks you cannot block an API response on a write, and this shape would not exist.
 
-**x402 batching via Circle Gateway.** The buyer signs offchain and pays no gas per call, which is what makes per-request pricing viable at all. arcproof composes with that rather than replacing it.
+**x402 batching via Circle Gateway.** The buyer signs offchain and pays no gas per call, which is what makes per-request pricing viable at all. Aernyth composes with that rather than replacing it.
 
 ## Try it
 
@@ -106,7 +106,7 @@ Requires **Node 22+** (the code runs TypeScript directly via `--experimental-str
 
 ```bash
 git clone https://github.com/kendu3310/arcproof
-cd arcproof
+cd arcproof                                  # the repository keeps its original name
 npm install
 git config core.hooksPath .githooks        # refuses to commit a key or a .env
 npm test                                   # 32 tests, no network or keys needed
@@ -142,7 +142,7 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 - **Budget enforcement is client-side.** It stops *this* agent overspending. It is not a custody control.
 - **Receipts are written by the provider**, so they attest to what it committed to, not to whether that was any good. The registry is permissionless by design — a receipt from an address you did not pay proves nothing, which is why `verifyReceipt` takes `expectedProvider`.
 - **Receipts are public.** Payer, provider, sizes and digests are on chain for anyone to read. A digest does not reveal a file, but anyone who already has a file can test whether it was the one you sent. Fine for 3D assets; not for private documents.
-- **Failure mode on a receipt write is to deliver anyway**, with `x-arcproof-error` set, because the buyer has already paid. Pass `strict: true` when an unprovable delivery is worse than none.
+- **Failure mode on a receipt write is to deliver anyway**, with `x-aernyth-error` set, because the buyer has already paid. Pass `strict: true` when an unprovable delivery is worse than none.
 
 ## Not yet done
 
@@ -153,7 +153,7 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 ## Layout
 
 ```
-packages/arcproof/     the library: digests, receipt writer, Express middleware, verifier
+packages/aernyth/     the library: digests, receipt writer, Express middleware, verifier
 contracts/             ReceiptRegistry.sol — one event, replay-protected, no owner
 examples/glb-service/  a real paid service built on it
 examples/buyer-agent/  an agent that pays, verifies, and enforces a budget in code

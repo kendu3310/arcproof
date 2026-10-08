@@ -74,7 +74,7 @@ export function networkFor(chainId: number): ArcNetwork {
   if (chainId === arcMainnet.chainId) return arcMainnet;
   if (chainId === arcTestnet.chainId) return arcTestnet;
   throw new Error(
-    `Unsupported chain ${chainId}. arcproof targets Arc mainnet (5042) or Arc testnet (5042002).`,
+    `Unsupported chain ${chainId}. Aernyth targets Arc mainnet (5042) or Arc testnet (5042002).`,
   );
 }
 

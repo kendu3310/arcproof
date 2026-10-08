@@ -4,7 +4,7 @@
  * GatewayClient.pay() is the convenient path, but it hands back parsed data
  * and drops the response headers. Both are fatal here: the receipt commits to
  * a digest of the exact bytes on the wire, and the tx hash to check it against
- * arrives in `x-arcproof-tx`. Re-serialising parsed JSON would produce a
+ * arrives in `x-aernyth-tx`. Re-serialising parsed JSON would produce a
  * different digest and look like the provider had cheated.
  */
 

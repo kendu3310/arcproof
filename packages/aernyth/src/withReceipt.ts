@@ -24,19 +24,19 @@ import type { Address, Hex } from "viem";
 
 /** Headers the buyer reads to verify the exchange. */
 export const RECEIPT_HEADERS = {
-  requestId: "x-arcproof-request-id",
-  input: "x-arcproof-input",
-  output: "x-arcproof-output",
-  tx: "x-arcproof-tx",
-  registry: "x-arcproof-registry",
-  provider: "x-arcproof-provider",
+  requestId: "x-aernyth-request-id",
+  input: "x-aernyth-input",
+  output: "x-aernyth-output",
+  tx: "x-aernyth-tx",
+  registry: "x-aernyth-registry",
+  provider: "x-aernyth-provider",
   /**
    * The payment nonce the request id was derived from. Present only when the
    * receipt is bound to a payment; the buyer already holds this value, so it
    * is a convenience, never a source of trust.
    */
-  paymentNonce: "x-arcproof-payment-nonce",
-  error: "x-arcproof-error",
+  paymentNonce: "x-aernyth-payment-nonce",
+  error: "x-aernyth-error",
 } as const;
 
 export interface WithReceiptOptions {
@@ -63,7 +63,7 @@ export interface WithReceiptOptions {
    * Defaults to false, and the default is the uncomfortable choice. The buyer
    * has already paid by the time the handler runs, so refusing to hand over
    * the result costs them money and gives them nothing. Delivering it with
-   * `x-arcproof-error` set at least leaves them with the goods and an honest
+   * `x-aernyth-error` set at least leaves them with the goods and an honest
    * signal that this particular exchange is unproven. Set true when an
    * unprovable delivery is worse than no delivery.
    */
@@ -92,7 +92,7 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
       // would look valid and prove nothing.
       next(
         new Error(
-          "arcproof: no verified payment on the request. Mount withReceipt() after gateway.require(), or pass `payer` for a sponsored route.",
+          "aernyth: no verified payment on the request. Mount withReceipt() after gateway.require(), or pass `payer` for a sponsored route.",
         ),
       );
       return;
@@ -128,8 +128,8 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
         options.onError?.(
           new Error(
             authorization
-              ? `arcproof: payment signed by ${authorization.from} but verified for ${payer}; receipt left unbound`
-              : "arcproof: could not read the payment authorization; receipt left unbound",
+              ? `aernyth: payment signed by ${authorization.from} but verified for ${payer}; receipt left unbound`
+              : "aernyth: could not read the payment authorization; receipt left unbound",
           ),
         );
       }
@@ -188,7 +188,7 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
         })
         .finally(() => {
           if (strict && res.statusCode === 502) {
-            send({ error: "arcproof: receipt could not be recorded" } as never);
+            send({ error: "aernyth: receipt could not be recorded" } as never);
           } else {
             send(body as never);
           }
@@ -204,7 +204,7 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
 function defaultGetInput(req: Request): Bytes {
   if (Buffer.isBuffer(req.body)) return req.body;
   throw new Error(
-    "arcproof: req.body is not a Buffer. Mount express.raw() on this route, or pass getInput().",
+    "aernyth: req.body is not a Buffer. Mount express.raw() on this route, or pass getInput().",
   );
 }
 

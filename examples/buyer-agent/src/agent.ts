@@ -26,7 +26,7 @@ import {
   registryEnvKey,
   digest,
   type ArcNetwork,
-} from "arcproof";
+} from "aernyth";
 import type { Address, Hex } from "viem";
 import { Budget, BudgetExceeded, usd } from "./budget.ts";
 import { payAndFetch } from "./pay.ts";

@@ -1,8 +1,8 @@
 {
-  "name": "arcproof-monorepo",
+  "name": "aernyth-monorepo",
   "private": true,
   "version": "0.1.0",
-  "description": "Verifiable deliverables for x402-paid services on Arc. Circle's SDK settles the payment; arcproof proves what was delivered for it.",
+  "description": "Verifiable deliverables for x402-paid services on Arc. Circle's SDK settles the payment; Aernyth proves what was delivered for it.",
   "license": "Apache-2.0",
   "type": "module",
   "engines": {

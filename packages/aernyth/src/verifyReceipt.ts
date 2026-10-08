@@ -27,13 +27,13 @@ import type { ArcNetwork } from "./networks.ts";
 export interface VerifyReceiptParams {
   network: ArcNetwork;
   registry: Address;
-  /** Transaction hash from the `x-arcproof-tx` response header. */
+  /** Transaction hash from the `x-aernyth-tx` response header. */
   txHash: Hex;
   /** The exact bytes sent to the provider. */
   input: Bytes;
   /** The exact bytes received back. */
   output: Bytes;
-  /** Expected provider address, from `x-arcproof-provider`. */
+  /** Expected provider address, from `x-aernyth-provider`. */
   expectedProvider?: Address;
   /** Expected payer, i.e. the buyer's own address. */
   expectedPayer?: Address;
