@@ -1,0 +1,93 @@
+{
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "date": "2026-10-08T17:12:54.958Z",
+  "checks": [
+    {
+      "name": "struct hash matches",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "EIP-712 digest matches viem's hashTypedData",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Merkle leaf matches",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "root on chain is the root built here",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "batch attributed to the provider",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "proof for receipt #137 reaches the root",
+      "ok": true,
+      "detail": "8 siblings"
+    },
+    {
+      "name": "same proof rejects that receipt with one field changed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "anchor succeeded when sent by someone other than the provider",
+      "ok": true,
+      "detail": "34157 gas"
+    },
+    {
+      "name": "ecrecover on Arc recovered the provider",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "refuses a signature by a key other than the named provider",
+      "ok": true,
+      "detail": "reverted BadSignature"
+    },
+    {
+      "name": "refuses a receipt changed after it was signed",
+      "ok": true,
+      "detail": "reverted BadSignature"
+    },
+    {
+      "name": "refuses the malleable twin of a valid signature",
+      "ok": true,
+      "detail": "reverted BadSignature"
+    }
+  ],
+  "gas": {
+    "deploy": 406331,
+    "commit": {
+      "1": {
+        "gas": 24160,
+        "gwei": 21,
+        "tx": "0x26beb0c0148d75f4fddb0b32a8a4476056252f3d239dbef4f6bb6b821dd333b2"
+      },
+      "16": {
+        "gas": 24160,
+        "gwei": 21,
+        "tx": "0xd01a919b812ca0beabca8e5db7f11dbb647ed8492c09596e1813f4ef49e25615"
+      },
+      "256": {
+        "gas": 24160,
+        "gwei": 21,
+        "tx": "0x57e2fdfa3b32c873dfaac098bf9f5d5d4e0b7a697fd3b749b69d580e2e3a8197"
+      }
+    },
+    "anchor": {
+      "gas": 34157,
+      "gwei": 21,
+      "tx": "0x9cebc925cdf3ad84dc38053d0546770f021b04a18792e66ea3002be40dfcc02f"
+    }
+  },
+  "registry": "0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837"
+}

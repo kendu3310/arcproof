@@ -1,8 +1,12 @@
 # Batched receipts — design
 
-Status: **proposed, not built.** Nothing here is deployed. Numbers marked
-*measured* came from Arc mainnet; numbers marked *estimated* are arithmetic
-that has to be confirmed on testnet before anyone relies on it.
+Status: **contract written and measured on testnet; not wired into the
+service.** [`contracts/src/BatchRegistry.sol`](../contracts/src/BatchRegistry.sol)
+is deployed on Arc testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837`.
+Nothing on mainnet uses it. Every number below is *measured*, on mainnet for
+today's registry and on testnet for this one, by
+[`scripts/measure-batch.mjs`](../scripts/measure-batch.mjs); the raw results are
+in [`measurements/`](measurements/).
 
 ## The problem
 
@@ -102,9 +106,12 @@ struct Receipt {
 }
 ```
 
-**Leaf:** `keccak256(bytes.concat(keccak256(abi.encode(receipt))))`. Hashing
-twice keeps a leaf from ever being the same length as an internal node, which
-closes the second-preimage attack on Merkle proofs.
+**Leaf:** `keccak256(abi.encodePacked(structHash(receipt)))` — the EIP-712
+struct hash, hashed again. One value serves both the signature and the tree,
+and because the struct hash includes the type hash, a leaf cannot collide with
+any other kind of data. Hashing twice keeps a leaf from ever being the same
+length as an internal node, which closes the second-preimage attack on Merkle
+proofs.
 
 **Tree:** sorted-pair hashing, as in OpenZeppelin's `MerkleProof`. Verifiers
 exist in every language people will build agents in, so nobody has to trust
@@ -129,14 +136,33 @@ No storage at all — events only. Roots are found by transaction hash, the way
 receipts already are, because the public RPC refuses `eth_getLogs` across more
 than ~5,000 blocks.
 
-*Estimated* `commit`: base 21,000 + `LOG3` with 64 bytes ≈ 2,000 + calldata ≈
-800 + overhead ≈ 1,500 — **about 25,000 gas, $0.0005 per batch**. Per receipt:
+`commit` costs **24,160 gas whatever the batch size** — the root is 32 bytes
+whether it covers one receipt or 256. The estimate before measuring was 25,300;
+it was 5% high. Priced at mainnet's 21 gwei:
 
-| leaves per batch | cost per receipt |
-|---:|---:|
-| 1 | ~$0.0005 *(half of today, from dropping the storage write)* |
-| 10 | ~$0.00005 |
-| 100 | ~$0.000005 |
+| | gas per receipt | cost per receipt | vs today |
+|---|---:|---:|---:|
+| Today, one transaction each | 49,559 | $0.001041 | — |
+| Batch of 1 | 24,160 | $0.000507 | 2× cheaper |
+| Batch of 16 | 1,510 | $0.000032 | 33× |
+| Batch of 256 | 94 | $0.000002 | 527× |
+| `anchor`, one receipt, sent by the buyer | 34,157 | $0.000717 | 1.5× |
+
+What that does to a call's price:
+
+| price per call | receipt today | batch of 16 | batch of 256 |
+|---:|---:|---:|---:|
+| $0.02 | 5% | 0.2% | 0.01% |
+| $0.001 | 104% | 3% | 0.2% |
+| $0.0001 | 1,041% | 32% | 2% |
+
+Sub-cent calls become viable, but only at volume — at a tenth of a cent, a
+provider needs a batch of about 16 inside its window before the receipt stops
+costing a meaningful share of the price. A quiet provider pays what a single
+receipt costs, which is still half of today.
+
+Even the fallback is cheaper than now: anchoring a single signed receipt from
+outside costs less than `ReceiptRegistry.record`, because it writes no storage.
 
 ## If the provider stops anchoring
 
@@ -167,10 +193,25 @@ non-repudiation a buyer needs before acting is there immediately. A buyer that
 insists on the anchor before acting can wait for it: one window plus one
 block.
 
-## To settle before writing code
+## Settled on testnet
 
-- Measure `commit` and `anchor` on Arc testnet. The table above is arithmetic.
-- Confirm `ecrecover` behaves as on Ethereum on Arc. It should; check anyway.
+Checked by `scripts/measure-batch.mjs` against the deployed contract, all
+passing:
+
+- JavaScript (viem) and Solidity agree on the struct hash, the EIP-712 digest
+  and the Merkle leaf. A verifier that hashed differently from the contract
+  would prove nothing.
+- The root read back from the `Batch` event is the root built off chain, and
+  the batch is attributed to the provider.
+- A proof for one receipt out of 256 (8 siblings) reaches that root, and the
+  same proof fails if one field of the receipt changes.
+- `anchor` succeeds when sent by an account other than the provider, and
+  `ecrecover` on Arc recovers the provider.
+- `anchor` refuses a signature by the wrong key, a receipt altered after
+  signing, and the malleable twin `(r, n − s)` of a valid signature.
+
+## Still open
+
 - Window policy: fixed T, fixed N, or both. Start with both — T = 1 s,
   N = 256 — and measure.
 - Where proofs live. `GET /receipts/{id}` puts the provider in charge of
