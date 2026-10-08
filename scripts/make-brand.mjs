@@ -6,8 +6,13 @@
  * Nothing here is cosmetic tidying. Each step fixes something measured in the
  * source files, and the reasons are recorded next to the code that depends on
  * them — re-exporting the artwork without re-reading this will undo the fixes.
+ *
+ * brand-source/ is deliberately not in the repository: it is the designer's
+ * original artwork, and everything it produces is committed under docs/, so
+ * the site builds and deploys without it. You only need this script when the
+ * artwork changes.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import sharp from "sharp";
@@ -15,6 +20,15 @@ import sharp from "sharp";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = (n) => join(root, "brand-source", `${n}.png`);
 const out = (name) => join(root, "docs", name);
+
+if (!existsSync(join(root, "brand-source"))) {
+  console.error(
+    "brand-source/ is not here, so there is no artwork to build from.\n" +
+      "It is not committed — see the note at the top of this file. Nothing is\n" +
+      "broken: docs/ already holds everything this script would have produced.",
+  );
+  process.exit(1);
+}
 
 const report = [];
 const emit = async (name, pipeline) => {

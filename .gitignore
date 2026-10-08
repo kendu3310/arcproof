@@ -18,3 +18,8 @@ Thumbs.db
 
 # Personal notes, unrelated to this project.
 BAI-HOC-WEB3.md
+
+# The original artwork. Kept out of the repo at the designer's request; the
+# files it produces are committed under docs/, so the site builds without it.
+# scripts/make-brand.mjs needs it and says so when it is missing.
+brand-source/
