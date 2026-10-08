@@ -1,6 +1,8 @@
 # Batched receipts — design
 
-Status: **built, and run end to end on Arc testnet; off on mainnet.**
+Status: **built, and live on Arc mainnet** behind `/batched/*` on the reference
+service since 9 Oct 2026. The first mainnet batch, tx `0x52450f61…eb18c4553`,
+cost 24,148 gas, $0.000507 — the same as on testnet.
 [`contracts/src/BatchRegistry.sol`](../contracts/src/BatchRegistry.sol) is
 deployed on testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837` and on
 mainnet at `0x54d6e7effde253f99c944b5a6f4421b590a80d74` (406,331 gas, $0.0085). The
