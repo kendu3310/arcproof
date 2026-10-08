@@ -1,14 +1,26 @@
 /**
  * Buyer-side verification.
  *
- * The provider's claim is worthless on its own; this reads the receipt back
- * off Arc and checks it against bytes the buyer hashes itself. A provider that
- * returns a degraded file cannot produce a matching outputHash, and one that
- * skips the write has no receipt at all.
+ * Reads the receipt back off Arc and checks it against bytes the buyer hashes
+ * itself.
+ *
+ * Be exact about what a pass means. The provider writes the receipt, so a
+ * provider that returns a bad file and records that bad file's hash passes
+ * every check here. A match does not say the output is good. It says the
+ * provider has publicly and irrevocably committed to having delivered exactly
+ * these bytes, for exactly this input, to this payer — which is what lets
+ * anyone else hold it to that delivery later. Whether the bytes are any good
+ * is a separate question, answered by checks the buyer runs on the content
+ * itself; see the geometry recount on the demo page for one.
+ *
+ * What a mismatch does catch: bytes altered between the provider's commitment
+ * and the buyer, a provider whose served output differs from what it logged,
+ * and — with `paymentNonce` — a receipt that was not written for this payment.
  */
 
 import { createPublicClient, http, parseEventLogs, type Address, type Hex } from "viem";
 import { digest, type Bytes } from "./digest.ts";
+import { requestIdForPayment } from "./payment.ts";
 import { receiptRegistryAbi, arcChain } from "./receipt.ts";
 import type { ArcNetwork } from "./networks.ts";
 
@@ -25,6 +37,14 @@ export interface VerifyReceiptParams {
   expectedProvider?: Address;
   /** Expected payer, i.e. the buyer's own address. */
   expectedPayer?: Address;
+  /**
+   * The nonce of the EIP-3009 authorization the buyer signed to pay for this
+   * request. When given, the receipt must carry the request id derived from
+   * it — proof that it was written for this payment and not lifted from
+   * another one. The buyer generated this value, so checking it trusts
+   * nothing the provider said.
+   */
+  paymentNonce?: Hex;
 }
 
 export interface VerifiedReceipt {
@@ -38,6 +58,8 @@ export interface VerifiedReceipt {
   outputHash?: Hex;
   bytesIn?: bigint;
   bytesOut?: bigint;
+  /** True when `paymentNonce` was given and the receipt is bound to it. */
+  paymentBound?: boolean;
   explorerUrl: string;
 }
 
@@ -121,9 +143,25 @@ export async function verifyReceipt(
     );
   }
 
+  let paymentBound: boolean | undefined;
+  if (params.paymentNonce) {
+    const expected = requestIdForPayment({
+      payer: params.expectedPayer ?? recorded.payer,
+      paymentNonce: params.paymentNonce,
+      inputHash: localInput,
+    });
+    paymentBound = expected.toLowerCase() === recorded.requestId.toLowerCase();
+    if (!paymentBound) {
+      problems.push(
+        `receipt is not bound to this payment: its request id is ${recorded.requestId}, the payment derives ${expected}`,
+      );
+    }
+  }
+
   return {
     ok: problems.length === 0,
     problems,
+    ...(paymentBound === undefined ? {} : { paymentBound }),
     requestId: recorded.requestId,
     provider: recorded.provider,
     payer: recorded.payer,

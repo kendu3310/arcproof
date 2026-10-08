@@ -30,6 +30,13 @@ export {
 } from "./digest.ts";
 
 export {
+  readPaymentAuthorization,
+  requestIdForPayment,
+  PAYMENT_HEADER,
+  type PaymentAuthorization,
+} from "./payment.ts";
+
+export {
   ReceiptWriter,
   receiptRegistryAbi,
   arcChain,

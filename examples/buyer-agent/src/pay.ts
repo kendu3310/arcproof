@@ -13,7 +13,7 @@ import {
   encodePaymentSignatureHeader,
 } from "@x402/core/http";
 import { BatchEvmScheme } from "@circle-fin/x402-batching/client";
-import type { Account } from "viem";
+import type { Account, Hex } from "viem";
 import { Budget, usd, type PaymentTerms } from "./budget.ts";
 
 export interface PaidResponse {
@@ -22,6 +22,13 @@ export interface PaidResponse {
   paid: boolean;
   amount: bigint;
   terms?: PaymentTerms;
+  /**
+   * The nonce of the authorization this agent signed. It is what the receipt
+   * must be bound to, and the agent holds it without asking the provider.
+   */
+  paymentNonce?: Hex;
+  /** The settlement reference Circle's facilitator returned, if any. */
+  settlement?: string;
 }
 
 export interface PayOptions {
@@ -110,11 +117,27 @@ export async function payAndFetch(options: PayOptions): Promise<PaidResponse> {
 
   if (second.ok) budget.commit(amount);
 
+  const paymentNonce = (created.payload as { authorization?: { nonce?: Hex } }).authorization?.nonce;
+  const settlement = readSettlement(second.headers.get("payment-response"));
+
   return {
     response: second,
     body,
     paid: second.ok,
     amount,
     terms: terms as unknown as PaymentTerms,
+    ...(paymentNonce ? { paymentNonce } : {}),
+    ...(settlement ? { settlement } : {}),
   };
+}
+
+/** Pull the facilitator's settlement reference out of PAYMENT-RESPONSE. */
+function readSettlement(header: string | null): string | undefined {
+  if (!header) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(header, "base64").toString("utf8")) as { transaction?: unknown };
+    return typeof parsed.transaction === "string" && parsed.transaction ? parsed.transaction : undefined;
+  } catch {
+    return undefined;
+  }
 }

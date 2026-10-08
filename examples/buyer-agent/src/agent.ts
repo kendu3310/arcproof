@@ -14,7 +14,7 @@
  * quietly degraded.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -124,6 +124,7 @@ const verified = await verifyReceipt({
   input: payload,
   output: result.body,
   expectedPayer: account.address,
+  ...(result.paymentNonce ? { paymentNonce: result.paymentNonce } : {}),
 });
 
 if (!verified.ok) {
@@ -136,6 +137,10 @@ console.log("  verified against the chain");
 console.log(`    provider   ${verified.provider}`);
 console.log(`    payer      ${verified.payer}`);
 console.log(`    bytes      ${verified.bytesIn} in, ${verified.bytesOut} out`);
+console.log(
+  `    payment    ${verified.paymentBound ? `bound — request id derives from nonce ${result.paymentNonce}` : "NOT bound to this payment"}`,
+);
+if (result.settlement) console.log(`    settlement ${result.settlement}`);
 console.log(`    ${verified.explorerUrl}`);
 
 // Prove the check has teeth: the same receipt must reject a body that differs
@@ -155,6 +160,13 @@ console.log(
   `\ncontrol: one flipped byte is ${control.ok ? "ACCEPTED — the check is broken" : "rejected"}`,
 );
 if (control.ok) process.exit(1);
+
+// Keep the exact bytes that came back, so the run can be published and
+// re-verified by someone who was not there.
+if (process.env.OUTPUT) {
+  writeFileSync(process.env.OUTPUT, result.body);
+  console.log(`\nsaved the delivered bytes to ${process.env.OUTPUT}`);
+}
 
 console.log(`\nspent ${usd(budget.spent)}, ${usd(budget.remaining)} left`);
 

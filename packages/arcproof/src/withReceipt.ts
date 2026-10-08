@@ -18,6 +18,7 @@
 import { randomBytes } from "node:crypto";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { digest, deriveRequestId, toUint64Size, type Bytes } from "./digest.ts";
+import { PAYMENT_HEADER, readPaymentAuthorization, requestIdForPayment } from "./payment.ts";
 import type { ReceiptWriter } from "./receipt.ts";
 import type { Address, Hex } from "viem";
 
@@ -29,6 +30,12 @@ export const RECEIPT_HEADERS = {
   tx: "x-arcproof-tx",
   registry: "x-arcproof-registry",
   provider: "x-arcproof-provider",
+  /**
+   * The payment nonce the request id was derived from. Present only when the
+   * receipt is bound to a payment; the buyer already holds this value, so it
+   * is a convenience, never a source of trust.
+   */
+  paymentNonce: "x-arcproof-payment-nonce",
   error: "x-arcproof-error",
 } as const;
 
@@ -73,6 +80,7 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
     res: Response,
     next: NextFunction,
   ): void {
+    const sponsored = options.payer !== undefined;
     const payer =
       typeof options.payer === "function"
         ? options.payer(req)
@@ -99,7 +107,33 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
     }
 
     const inputHash = digest(input);
-    const requestId = deriveRequestId({ payer, nonce: randomNonce(), inputHash });
+
+    // A paid request's id comes from the payment itself, so the receipt can be
+    // matched to the purchase that caused it. A sponsored request has no
+    // payment to bind to and keeps a random nonce.
+    let requestId: Hex;
+    const authorization = sponsored ? undefined : readPaymentAuthorization(req.headers[PAYMENT_HEADER]);
+
+    if (authorization && authorization.from.toLowerCase() === payer.toLowerCase()) {
+      requestId = requestIdForPayment({ payer, paymentNonce: authorization.nonce, inputHash });
+      res.setHeader(RECEIPT_HEADERS.paymentNonce, authorization.nonce);
+    } else {
+      requestId = deriveRequestId({ payer, nonce: randomNonce(), inputHash });
+      if (!sponsored) {
+        // The money has already moved by now, so refusing to serve would only
+        // punish the buyer for a format this code failed to read. Serve, leave
+        // the receipt unbound — the missing payment-nonce header says so, and a
+        // buyer that checks the binding will see it fail — and tell the
+        // operator, because this means the payment SDK changed underneath us.
+        options.onError?.(
+          new Error(
+            authorization
+              ? `arcproof: payment signed by ${authorization.from} but verified for ${payer}; receipt left unbound`
+              : "arcproof: could not read the payment authorization; receipt left unbound",
+          ),
+        );
+      }
+    }
 
     res.setHeader(RECEIPT_HEADERS.requestId, requestId);
     res.setHeader(RECEIPT_HEADERS.input, inputHash);
