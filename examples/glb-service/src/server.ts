@@ -20,6 +20,9 @@ import {
   arcMainnet,
   arcTestnet,
   registryFromEnv,
+  batchRegistryFromEnv,
+  BatchAnchor,
+  receiptProofs,
   registryEnvKey,
   type ArcNetwork,
 } from "aernyth";
@@ -107,6 +110,7 @@ app.get("/health", (_req, res) => {
     // leaves the previous deploy running, and without this there is no way to
     // tell from outside that the service is behind the repository.
     commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? "local",
+    batchRegistry: batchRegistryFromEnv(network) ?? null,
   });
 });
 
@@ -203,12 +207,45 @@ app.post(
   handleOptimize,
 );
 
+/**
+ * Batched receipts, on when BATCH_REGISTRY_ADDRESS_<NETWORK> is set.
+ *
+ * The same two routes under /batched/: the response goes out as soon as the
+ * receipt is signed, and receipts are anchored together a second or so later,
+ * one transaction for up to 256. The proof is served from /receipts/<id>.
+ * The unbatched routes are untouched, so turning this on changes nothing for
+ * existing callers. See design/batched-receipts.md.
+ */
+const batchRegistry = batchRegistryFromEnv(network) as Address | undefined;
+const anchor = batchRegistry
+  ? new BatchAnchor({ writer, registry: batchRegistry, maxBatch: 256, maxWaitMs: 1000 })
+  : undefined;
+
+if (anchor) {
+  app.post(
+    "/batched/optimize",
+    rawBody,
+    gateway.require("$0.02") as unknown as RequestHandler,
+    withReceipt({ anchor, onError: (error) => console.error("[batched receipt]", error) }),
+    handleOptimize,
+  );
+  app.post(
+    "/batched/demo/optimize",
+    demoBody,
+    demoGuard.middleware,
+    withReceipt({ anchor, payer: writer.providerAddress, onError: (error) => console.error("[batched demo receipt]", error) }),
+    handleOptimize,
+  );
+  app.get("/receipts/:requestId", receiptProofs(anchor));
+}
+
 app.listen(port, () => {
   console.log(`glb-service on http://localhost:${port}`);
   console.log(`  network   ${network.name} (chain ${network.chainId})`);
   console.log(`  seller    ${sellerAddress}`);
   console.log(`  provider  ${writer.providerAddress}`);
   console.log(`  registry  ${registry}`);
+  console.log(`  batching  ${anchor ? `on, BatchRegistry ${batchRegistry}` : "off"}`);
   console.log(`  facilitator ${facilitatorUrl}`);
 });
 

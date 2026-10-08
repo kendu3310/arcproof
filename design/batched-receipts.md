@@ -1,9 +1,21 @@
 # Batched receipts — design
 
-Status: **contract written and measured on testnet; not wired into the
-service.** [`contracts/src/BatchRegistry.sol`](../contracts/src/BatchRegistry.sol)
-is deployed on Arc testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837`.
-Nothing on mainnet uses it. Every number below is *measured*, on mainnet for
+Status: **built, and run end to end on Arc testnet; off on mainnet.**
+[`contracts/src/BatchRegistry.sol`](../contracts/src/BatchRegistry.sol) is
+deployed on testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837`. The
+package implements it (`BatchAnchor`, `withReceipt({ anchor })`,
+`verifySignedReceipt`, `verifyAnchoredReceipt`), the reference service turns it
+on when `BATCH_REGISTRY_ADDRESS_<NETWORK>` is set, and the buyer agent handles
+it with `RECEIPT_MODE=batched`. Nothing on mainnet uses it yet.
+
+End to end on testnet ([`scripts/e2e-batch.mjs`](../scripts/e2e-batch.mjs)): 20
+concurrent requests were answered in a median of **163 ms** against **1,042 ms**
+for one immediate-mode request held for its block, all 20 went into **one**
+commit of 24,148 gas — **1,207 gas a receipt** against 49,559 — and every
+signature and every Merkle proof checked. A real x402 payment through the
+batched route came back signed, payment-bound and anchored, and the evidence
+the agent kept was enough on its own to anchor the receipt from the buyer's
+account. Every number below is *measured*, on mainnet for
 today's registry and on testnet for this one, by
 [`scripts/measure-batch.mjs`](../scripts/measure-batch.mjs); the raw results are
 in [`measurements/`](measurements/).

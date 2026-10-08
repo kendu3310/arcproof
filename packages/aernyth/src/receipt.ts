@@ -10,9 +10,11 @@ import {
   type Hex,
   type Address,
   type Chain,
+  type Abi,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MIN_MAX_FEE_PER_GAS_WEI, type ArcNetwork } from "./networks.ts";
+import { signReceipt, type ReceiptDomain } from "./signed.ts";
 
 export const receiptRegistryAbi = [
   {
@@ -59,6 +61,14 @@ export interface ReceiptData {
   outputHash: Hex;
   bytesIn: bigint;
   bytesOut: bigint;
+}
+
+/** A contract write, without fees: the queue sets those. */
+export interface ContractCall {
+  address: Address;
+  abi: Abi;
+  functionName: string;
+  args: readonly unknown[];
 }
 
 export interface ReceiptWriterOptions {
@@ -120,6 +130,7 @@ export class ReceiptWriter {
   readonly registry: Address;
   readonly providerAddress: Address;
 
+  #account;
   #wallet;
   #publicClient;
   #timeoutMs: number;
@@ -132,6 +143,7 @@ export class ReceiptWriter {
     this.network = options.network;
     this.registry = options.registry;
     this.providerAddress = account.address;
+    this.#account = account;
     this.#timeoutMs = options.confirmationTimeoutMs ?? 30_000;
     this.#wallet = createWalletClient({
       account,
@@ -144,18 +156,51 @@ export class ReceiptWriter {
     });
   }
 
+  /**
+   * Sign a receipt with the provider's key, EIP-712. The key itself never
+   * leaves this object; whoever needs a signature asks for one here.
+   */
+  signReceipt(domain: ReceiptDomain, receipt: ReceiptData): Promise<Hex> {
+    return signReceipt(this.#account, domain, receipt);
+  }
+
   /** Write one receipt and wait for it to be mined. Returns the tx hash. */
   async record(data: ReceiptData): Promise<Hex> {
-    const run = this.#queue.then(() => this.#record(data));
+    return this.send({
+      address: this.registry,
+      abi: receiptRegistryAbi,
+      functionName: "record",
+      args: [
+        data.requestId,
+        data.payer,
+        data.inputHash,
+        data.outputHash,
+        data.bytesIn,
+        data.bytesOut,
+      ],
+    });
+  }
+
+  /**
+   * Send any contract call from the provider's key, through the same queue
+   * as receipts, and wait for it to be mined.
+   *
+   * Everything that signs with this key has to come through here. A batch
+   * commit sent from a second wallet client would race this one for nonces,
+   * and the loser's evidence would vanish — the failure this queue exists to
+   * prevent.
+   */
+  async send(call: ContractCall): Promise<Hex> {
+    const run = this.#queue.then(() => this.#sendWithRetry(call));
     // Keep the chain alive even when a write fails, so one bad request does
     // not wedge every later one behind a rejected promise.
     this.#queue = run.catch(() => undefined);
     return run;
   }
 
-  async #record(data: ReceiptData): Promise<Hex> {
+  async #sendWithRetry(call: ContractCall): Promise<Hex> {
     try {
-      return await this.#submit(data);
+      return await this.#submit(call);
     } catch (error) {
       // One retry, and only for failures that happen before the transaction
       // is accepted — a stale nonce, a dropped RPC connection. Those are
@@ -168,11 +213,11 @@ export class ReceiptWriter {
       // unproven when it was in fact already proven.
       if (!isPreSubmitFailure(error)) throw error;
       await new Promise((resolve) => setTimeout(resolve, 800));
-      return await this.#submit(data);
+      return await this.#submit(call);
     }
   }
 
-  async #submit(data: ReceiptData): Promise<Hex> {
+  async #submit(call: ContractCall): Promise<Hex> {
     const fees = await this.#publicClient.estimateFeesPerGas().catch(() => null);
 
     // Arc's mempool enforces a 20 Gwei floor on maxFeePerGas. Below it a
@@ -183,21 +228,13 @@ export class ReceiptWriter {
         ? fees.maxFeePerGas
         : MIN_MAX_FEE_PER_GAS_WEI;
 
+    // The call is typed loosely at this boundary so one queue can carry any
+    // contract; each caller passes an abi it declared as const.
     const hash = await this.#wallet.writeContract({
-      address: this.registry,
-      abi: receiptRegistryAbi,
-      functionName: "record",
-      args: [
-        data.requestId,
-        data.payer,
-        data.inputHash,
-        data.outputHash,
-        data.bytesIn,
-        data.bytesOut,
-      ],
+      ...call,
       maxFeePerGas,
       maxPriorityFeePerGas: 1_000_000_000n,
-    });
+    } as never);
 
     const receipt = await this.#publicClient.waitForTransactionReceipt({
       hash,
@@ -206,7 +243,7 @@ export class ReceiptWriter {
 
     if (receipt.status !== "success") {
       throw new Error(
-        `Receipt transaction reverted: ${this.network.explorerUrl}/tx/${hash}`,
+        `Transaction reverted: ${this.network.explorerUrl}/tx/${hash}`,
       );
     }
 

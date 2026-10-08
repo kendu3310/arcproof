@@ -109,7 +109,7 @@ git clone https://github.com/kendu3310/arcproof
 cd arcproof                                  # the repository keeps its original name
 npm install
 git config core.hooksPath .githooks        # refuses to commit a key or a .env
-npm test                                   # 32 tests, no network or keys needed
+npm test                                   # 46 tests, no network or keys needed
 
 cp .env.example .env
 node scripts/new-wallet.mjs                # writes a fresh key to .env, never prints it
@@ -146,7 +146,15 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 
 ## Not yet done
 
-**One transaction per receipt does not scale to sub-cent prices.** The fix is to batch: collect receipts for a second or two, write one Merkle root, and hand each buyer its leaf and proof. A batch of N cuts the cost per receipt by N, at the price of the receipt arriving shortly after the bytes rather than with them. Arc's half-second blocks are what make a window that short practical. The contract is written and measured on Arc testnet — a commit costs 24,160 gas however many receipts it covers, so a batch of 256 brings a receipt from $0.001 to $0.000002 — but the service does not use it yet. **[The design](design/batched-receipts.md)** has the numbers, the checks, and what it gives up.
+**Batched receipts are built, but only running on testnet.** One transaction per receipt does not scale to sub-cent prices, so the provider can instead sign each receipt with EIP-712 and return the signature with the bytes, then anchor many receipts at once as one Merkle root:
+
+```ts
+const anchor = new BatchAnchor({ writer, registry: batchRegistry });
+app.post("/batched/optimize", raw, gateway.require("$0.02"), withReceipt({ anchor }), handler);
+app.get("/receipts/:requestId", receiptProofs(anchor));
+```
+
+On testnet, 20 concurrent requests were answered in a median of 163 ms instead of the 1,042 ms an immediate receipt takes, and went into one commit costing 1,207 gas a receipt instead of 49,559. The buyer checks the signature offline the moment the bytes arrive, then the Merkle proof once the batch is committed, and keeps both: if the provider never anchors, the buyer can anchor the signed receipt itself. **[The design](design/batched-receipts.md)** has the numbers, the checks, and what it gives up — chiefly, duplicate request ids are no longer refused on chain; two conflicting signatures become proof of equivocation instead. Turning it on for mainnet means deploying `BatchRegistry` there and setting `BATCH_REGISTRY_ADDRESS_ARC`.
 
 [ERC-8183](https://eips.ethereum.org/EIPS/eip-8183) job escrow and [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) agent identity are the natural next layers — a receipt is evidence, but it is not yet a dispute mechanism. Both were left out deliberately: Circle's ERC-8183 tutorial targets testnet and the standard is not in Arc's published mainnet address table, and depending on something that may not exist on mainnet was not a risk worth taking for a first proof.
 

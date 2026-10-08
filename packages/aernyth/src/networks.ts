@@ -99,6 +99,19 @@ export function registryFromEnv(
   return env[registryEnvKey(network)]?.trim() || undefined;
 }
 
+/** Environment variable holding the BatchRegistry address for `network`. */
+export function batchRegistryEnvKey(network: ArcNetwork): string {
+  return `BATCH_REGISTRY_ADDRESS_${network.key.toUpperCase()}`;
+}
+
+/** Read the BatchRegistry address for `network`; undefined leaves batching off. */
+export function batchRegistryFromEnv(
+  network: ArcNetwork,
+  env: Record<string, string | undefined> = process.env,
+): string | undefined {
+  return env[batchRegistryEnvKey(network)]?.trim() || undefined;
+}
+
 export function txUrl(network: ArcNetwork, txHash: string): string {
   return `${network.explorerUrl}/tx/${txHash}`;
 }

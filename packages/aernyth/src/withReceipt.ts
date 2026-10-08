@@ -20,6 +20,7 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { digest, deriveRequestId, toUint64Size, type Bytes } from "./digest.ts";
 import { PAYMENT_HEADER, readPaymentAuthorization, requestIdForPayment } from "./payment.ts";
 import type { ReceiptWriter } from "./receipt.ts";
+import type { BatchAnchor } from "./batch.ts";
 import type { Address, Hex } from "viem";
 
 /** Headers the buyer reads to verify the exchange. */
@@ -36,11 +37,29 @@ export const RECEIPT_HEADERS = {
    * is a convenience, never a source of trust.
    */
   paymentNonce: "x-aernyth-payment-nonce",
+  /** Batched mode: the provider's EIP-712 signature over the receipt. */
+  signature: "x-aernyth-signature",
+  /** Batched mode: the payer the receipt names, needed to rebuild it. */
+  payer: "x-aernyth-payer",
+  /** Batched mode: where the Merkle proof can be fetched once the batch commits. */
+  proof: "x-aernyth-proof",
   error: "x-aernyth-error",
 } as const;
 
 export interface WithReceiptOptions {
-  writer: ReceiptWriter;
+  /**
+   * Immediate mode: one transaction per receipt, and the response is held
+   * until it is mined so the tx hash travels with the bytes.
+   */
+  writer?: ReceiptWriter;
+  /**
+   * Batched mode: the receipt is signed and the response goes out at once;
+   * the receipt is anchored with others a moment later. Pass exactly one of
+   * `writer` or `anchor`.
+   */
+  anchor?: BatchAnchor;
+  /** Batched mode: the path a buyer fetches its proof from. Defaults to /receipts/<requestId>. */
+  proofPath?: (requestId: Hex) => string;
   /**
    * Bytes to treat as the request input. Defaults to `req.body` when it is a
    * Buffer, which is what `express.raw()` produces.
@@ -72,7 +91,13 @@ export interface WithReceiptOptions {
 }
 
 export function withReceipt(options: WithReceiptOptions): RequestHandler {
-  const { writer, strict = false } = options;
+  const { writer, anchor, strict = false } = options;
+  if (Boolean(writer) === Boolean(anchor)) {
+    throw new Error("aernyth: withReceipt() takes exactly one of `writer` (immediate) or `anchor` (batched)");
+  }
+  const registry = anchor ? anchor.registry : writer!.registry;
+  const providerAddress = anchor ? anchor.providerAddress : writer!.providerAddress;
+  const proofPath = options.proofPath ?? ((requestId: Hex) => `/receipts/${requestId}`);
   const getInput = options.getInput ?? defaultGetInput;
 
   return function receiptMiddleware(
@@ -137,8 +162,8 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
 
     res.setHeader(RECEIPT_HEADERS.requestId, requestId);
     res.setHeader(RECEIPT_HEADERS.input, inputHash);
-    res.setHeader(RECEIPT_HEADERS.registry, writer.registry);
-    res.setHeader(RECEIPT_HEADERS.provider, writer.providerAddress);
+    res.setHeader(RECEIPT_HEADERS.registry, registry);
+    res.setHeader(RECEIPT_HEADERS.provider, providerAddress);
 
     const send = res.send.bind(res);
     let intercepted = false;
@@ -159,18 +184,28 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
       const outputHash = digest(output);
       res.setHeader(RECEIPT_HEADERS.output, outputHash);
 
-      void writer
-        .record({
-          requestId,
-          payer,
-          inputHash,
-          outputHash,
-          bytesIn: toUint64Size(input.byteLength),
-          bytesOut: toUint64Size(output.byteLength),
-        })
-        .then((txHash) => {
-          res.setHeader(RECEIPT_HEADERS.tx, txHash);
-        })
+      const receipt = {
+        requestId,
+        payer,
+        inputHash,
+        outputHash,
+        bytesIn: toUint64Size(input.byteLength),
+        bytesOut: toUint64Size(output.byteLength),
+      };
+
+      // Batched: wait only for the signature, which takes milliseconds, and
+      // let the chain catch up afterwards. Immediate: wait for the block.
+      const recorded: Promise<void> = anchor
+        ? anchor.add(receipt).then((signed) => {
+            res.setHeader(RECEIPT_HEADERS.signature, signed.signature);
+            res.setHeader(RECEIPT_HEADERS.payer, payer);
+            res.setHeader(RECEIPT_HEADERS.proof, proofPath(requestId));
+          })
+        : writer!.record(receipt).then((txHash) => {
+            res.setHeader(RECEIPT_HEADERS.tx, txHash);
+          });
+
+      void recorded
         .catch((error: unknown) => {
           options.onError?.(error);
           if (strict) {
@@ -198,6 +233,28 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
     } as Response["send"];
 
     next();
+  };
+}
+
+/**
+ * Serves batched proofs: GET <proofPath> → 200 anchored with its proof, 202
+ * while the batch is still open, 200 with status "failed" when the commit
+ * failed (the buyer should then anchor its signed receipt itself), 404 when
+ * this provider has no memory of the id.
+ */
+export function receiptProofs(anchor: BatchAnchor): RequestHandler {
+  return (req, res) => {
+    const id = String(req.params.requestId ?? "");
+    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) {
+      res.status(400).json({ error: "request id must be 0x followed by 64 hex digits" });
+      return;
+    }
+    const known = anchor.lookup(id as Hex);
+    if (!known) {
+      res.status(404).json({ status: "unknown" });
+      return;
+    }
+    res.status(known.status === "pending" ? 202 : 200).json(known);
   };
 }
 

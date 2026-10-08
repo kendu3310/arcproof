@@ -14,6 +14,8 @@ export {
   networkFor,
   registryEnvKey,
   registryFromEnv,
+  batchRegistryEnvKey,
+  batchRegistryFromEnv,
   txUrl,
   addressUrl,
   NETWORKS,
@@ -39,13 +41,46 @@ export {
 export {
   ReceiptWriter,
   receiptRegistryAbi,
+  type ContractCall,
   arcChain,
   type ReceiptData,
   type ReceiptWriterOptions,
 } from "./receipt.ts";
 
 export {
+  BatchAnchor,
+  batchRegistryAbi,
+  type AnchorProof,
+  type AnchorStatus,
+  type SignedReceipt,
+  type BatchAnchorOptions,
+} from "./batch.ts";
+
+export {
+  receiptDomain,
+  receiptStructHash,
+  receiptLeaf,
+  receiptDigest,
+  signReceipt,
+  recoverReceiptSigner,
+  RECEIPT_TYPES,
+  type ReceiptDomain,
+} from "./signed.ts";
+
+export { buildTree, proofFor, verifyProof, type MerkleTree } from "./merkle.ts";
+
+export {
+  verifySignedReceipt,
+  verifyAnchoredReceipt,
+  type VerifySignedParams,
+  type VerifiedSigned,
+  type VerifyAnchoredParams,
+  type VerifiedAnchored,
+} from "./verifyBatch.ts";
+
+export {
   withReceipt,
+  receiptProofs,
   RECEIPT_HEADERS,
   type WithReceiptOptions,
 } from "./withReceipt.ts";
