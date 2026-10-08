@@ -146,7 +146,7 @@ Assets it cannot guarantee are refused rather than mangled: skinned meshes and m
 
 ## Not yet done
 
-**Batched receipts are built, but only running on testnet.** One transaction per receipt does not scale to sub-cent prices, so the provider can instead sign each receipt with EIP-712 and return the signature with the bytes, then anchor many receipts at once as one Merkle root:
+**Batched receipts.** One transaction per receipt does not scale to sub-cent prices, so the provider can instead sign each receipt with EIP-712 and return the signature with the bytes, then anchor many receipts at once as one Merkle root:
 
 ```ts
 const anchor = new BatchAnchor({ writer, registry: batchRegistry });
@@ -154,7 +154,7 @@ app.post("/batched/optimize", raw, gateway.require("$0.02"), withReceipt({ ancho
 app.get("/receipts/:requestId", receiptProofs(anchor));
 ```
 
-On testnet, 20 concurrent requests were answered in a median of 163 ms instead of the 1,042 ms an immediate receipt takes, and went into one commit costing 1,207 gas a receipt instead of 49,559. The buyer checks the signature offline the moment the bytes arrive, then the Merkle proof once the batch is committed, and keeps both: if the provider never anchors, the buyer can anchor the signed receipt itself. **[The design](design/batched-receipts.md)** has the numbers, the checks, and what it gives up — chiefly, duplicate request ids are no longer refused on chain; two conflicting signatures become proof of equivocation instead. Turning it on for mainnet means deploying `BatchRegistry` there and setting `BATCH_REGISTRY_ADDRESS_ARC`.
+On testnet, 20 concurrent requests were answered in a median of 163 ms instead of the 1,042 ms an immediate receipt takes, and went into one commit costing 1,207 gas a receipt instead of 49,559. The buyer checks the signature offline the moment the bytes arrive, then the Merkle proof once the batch is committed, and keeps both: if the provider never anchors, the buyer can anchor the signed receipt itself. **[The design](design/batched-receipts.md)** has the numbers, the checks, and what it gives up — chiefly, duplicate request ids are no longer refused on chain; two conflicting signatures become proof of equivocation instead. `BatchRegistry` is deployed on mainnet at [`0x54d6e7ef…0d74`](https://explorer.arc.io/address/0x54d6e7effde253f99c944b5a6f4421b590a80d74); a service turns batching on by setting `BATCH_REGISTRY_ADDRESS_ARC` to it.
 
 [ERC-8183](https://eips.ethereum.org/EIPS/eip-8183) job escrow and [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) agent identity are the natural next layers — a receipt is evidence, but it is not yet a dispute mechanism. Both were left out deliberately: Circle's ERC-8183 tutorial targets testnet and the standard is not in Arc's published mainnet address table, and depending on something that may not exist on mainnet was not a risk worth taking for a first proof.
 

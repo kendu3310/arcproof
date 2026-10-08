@@ -2,11 +2,12 @@
 
 Status: **built, and run end to end on Arc testnet; off on mainnet.**
 [`contracts/src/BatchRegistry.sol`](../contracts/src/BatchRegistry.sol) is
-deployed on testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837`. The
+deployed on testnet at `0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837` and on
+mainnet at `0x54d6e7effde253f99c944b5a6f4421b590a80d74` (406,331 gas, $0.0085). The
 package implements it (`BatchAnchor`, `withReceipt({ anchor })`,
 `verifySignedReceipt`, `verifyAnchoredReceipt`), the reference service turns it
 on when `BATCH_REGISTRY_ADDRESS_<NETWORK>` is set, and the buyer agent handles
-it with `RECEIPT_MODE=batched`. Nothing on mainnet uses it yet.
+it with `RECEIPT_MODE=batched`.
 
 End to end on testnet ([`scripts/e2e-batch.mjs`](../scripts/e2e-batch.mjs)): 20
 concurrent requests were answered in a median of **163 ms** against **1,042 ms**
