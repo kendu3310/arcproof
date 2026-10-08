@@ -223,6 +223,8 @@
     border:1px solid var(--okbd); background:var(--okbg); color:var(--ok);
   }
   .badge.bad { border-color:var(--badbd); background:var(--badbg); color:var(--bad); }
+  .badges { display:flex; flex-wrap:wrap; gap:6px; }
+  .runlink { margin-left:6px; font-size:.78rem; }
   .copy {
     background:none; border:0; padding:2px; cursor:pointer; color:var(--dim);
     vertical-align:middle; line-height:0;
@@ -400,7 +402,10 @@
   </div>
   <p class="muted" style="margin:0 0 14px">
     Each row is read live from <span id="rpcName" class="v"></span> when this page loads — not copied
-    into it. Verified means the digests on the chain match the sizes recorded alongside them.
+    into it. <b>Recorded</b> means the receipt came out of the registry just now.
+    <b>Payment bound</b> means this page recomputed the request id from the nonce the buyer signed to pay,
+    and got exactly the id on chain. Neither says the output is good; that is checked against the file
+    itself, below.
   </p>
   <div id="receiptList"><div class="panel muted" style="margin:0">Loading…</div></div>
 
@@ -778,14 +783,22 @@ function renderReceipt(entry, parsed) {
     return card;
   }
 
-  // "Verified" has to mean something the page actually checked. Both digests
-  // and both sizes came out of the log just now; a hardcoded badge would be
-  // exactly the kind of claim this project exists to make unnecessary.
+  // Every badge has to name something the page actually checked, and only
+  // that. Reading a well-formed receipt out of the registry is "recorded" —
+  // calling it "verified" would claim a comparison against a file that has not
+  // happened, which is the overstatement this project exists to avoid.
   const sound =
     /^0x[0-9a-f]{64}$/.test(parsed.inputHash) &&
     /^0x[0-9a-f]{64}$/.test(parsed.outputHash) &&
     parsed.bytesIn > 0n &&
     parsed.bytesOut > 0n;
+
+  // Recomputed here from the buyer's nonce, not read from anything the
+  // provider said. Absent for receipts that predate binding, and for sponsored
+  // runs, which have no payment to bind to.
+  const bound = entry.paymentNonce
+    ? paymentRequestId(parsed.payer, entry.paymentNonce, parsed.inputHash) === parsed.requestId.toLowerCase()
+    : undefined;
 
   const pct = ((Number(parsed.bytesIn - parsed.bytesOut) / Number(parsed.bytesIn)) * 100).toFixed(1);
   const when = new Date(parsed.timestamp * 1000).toISOString().replace("T", " ").slice(0, 16);
@@ -796,15 +809,34 @@ function renderReceipt(entry, parsed) {
       <div class="name">${entry.service}</div>
       <div class="meta">${entry.note} · paid $${entry.paidUsd} · ${when} UTC</div>
     </div>
-    <div><span class="badge${sound ? "" : " bad"}">${sound ? "verified" : "incomplete"}</span></div>
+    <div class="badges"><span class="badge${sound ? "" : " bad"}">${sound ? "recorded" : "incomplete"}</span>
+      ${bound === undefined ? "" : `<span class="badge${bound ? "" : " bad"}">${bound ? "payment bound" : "not bound"}</span>`}</div>
     <div><span class="k">Input</span><span class="v big">${fmtBytes(parsed.bytesIn)}</span></div>
     <div><span class="k">Output</span><span class="v big">${fmtBytes(parsed.bytesOut)}</span>
       <span class="delta">(${pct}% smaller)</span></div>
     <div><span class="k">Payer</span><span class="v">${short(parsed.payer)}</span>${copyBtn(parsed.payer)}</div>
     <div><span class="k">Provider</span><span class="v">${short(parsed.provider)}</span>${copyBtn(parsed.provider)}</div>
     <div style="grid-column:2 / -1"><span class="k">Transaction</span>
-      <a class="v tx" href="${config.network.explorerUrl}/tx/${parsed.txHash}">${short(parsed.txHash)}${ICON_LINK}</a></div>`;
+      <a class="v tx" href="${config.network.explorerUrl}/tx/${parsed.txHash}">${short(parsed.txHash)}${ICON_LINK}</a>
+      ${entry.run ? `<span class="runlink">· <a class="tx" href="${REPO}/tree/main/docs/${entry.run}">files and how to check by hand${ICON_LINK}</a></span>` : ""}</div>`;
   return card;
+}
+
+const REPO = "https://github.com/kendu3310/arcproof";
+
+/**
+ * keccak256(abi.encodePacked(address payer, uint256 nonce, bytes32 inputHash))
+ * — the request id a receipt bound to a payment must carry. Same derivation
+ * as requestIdForPayment() in the package, written out here so the page
+ * checks it without any of the package's code.
+ */
+function paymentRequestId(payer, nonce, inputHash) {
+  const hex = payer.slice(2).toLowerCase().padStart(40, "0") +
+    nonce.slice(2).toLowerCase().padStart(64, "0") +
+    inputHash.slice(2).toLowerCase().padStart(64, "0");
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return "0x" + keccak256(bytes);
 }
 
 const copyBtn = (value) =>

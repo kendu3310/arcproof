@@ -1,0 +1,30 @@
+buyer     0x4746C70f17795adA8Bd2F17EE77bc67Aab796819
+service   the reference service, run locally against Arc mainnet
+network   Arc (chain 5042)
+limits    $0.05 per call, $0.2 total
+
+asset     examples/glb-service/fixtures/sample.glb (1.97 MB)
+
+  price $0.02 on eip155:5042 -> 0x09311F49F9C8473E1AAA8165F4FD84780912bdDc: within budget
+  paid $0.02, received 286932 bytes
+  1.97 MB -> 0.27 MB (13.9% of original)
+  triangles 9216 -> 9216, vertices 4753 -> 4753 (unchanged, as promised)
+
+verifying receipt 0x88b3f3210115fab48f6f71c809b1e454389faadbb6fcc242657d920c5feb6cc6
+  verified against the chain
+    provider   0x48A93E9e4D2B7bC7Cd585c5c2493770265410EaD
+    payer      0x4746C70f17795adA8Bd2F17EE77bc67Aab796819
+    bytes      2066880 in, 286932 out
+    payment    bound — request id derives from nonce 0x02e8cac3ee10f8374d167c2e75da440acccf62532e0d83625474905d6e7bbe14
+    settlement 2ff9ae65-60e3-40a5-9337-6f718821b674
+    https://explorer.arc.io/tx/0x88b3f3210115fab48f6f71c809b1e454389faadbb6fcc242657d920c5feb6cc6
+
+control: one flipped byte is rejected
+
+saved the delivered bytes to output.glb
+
+spent $0.02, $0.18 left
+guard refused $5.00 as expected: price $5 exceeds the per-call limit of $0.05
+
+input digest  0x69fa9f4d1fbb7bcf2dee0607ed1653043c9ffe8577b394d3209837aa7ad3e46a
+output digest 0x737df434e854a2807799f9b55ada64673e62c72fc1840a854f841b596f007289

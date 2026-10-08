@@ -1,5 +1,5 @@
 {
-  "comment": "Receipts recorded on Arc mainnet by the reference service. Listed by transaction hash rather than discovered by scanning: the public RPC rejects eth_getLogs over more than ~5,000 blocks, and at 0.5s per block the gap from the registry's deployment grows by ~172,800 blocks a day. Appended by scripts/record-receipt.mjs.",
+  "comment": "Receipts recorded on Arc mainnet by the reference service. Listed by transaction hash rather than discovered by scanning: the public RPC rejects eth_getLogs over more than ~5,000 blocks, and at 0.5s per block the gap from the registry's deployment grows by ~172,800 blocks a day. Maintained by hand: add an entry after a run worth showing.",
   "api": "https://arcproof.onrender.com",
   "apiComment": "Base URL of the live service. null hides the interactive demo. Append ?api=http://localhost:3000 to the page URL to drive it against a local service. Free hosting sleeps when idle, so the first request after a quiet spell takes about a minute.",
   "network": {
@@ -15,6 +15,14 @@
   },
   "receipts": [
     {
+      "txHash": "0x88b3f3210115fab48f6f71c809b1e454389faadbb6fcc242657d920c5feb6cc6",
+      "service": "/optimize",
+      "note": "Paid, and checkable end to end: the input is the globe in this repo, the output is published beside the transcript, and the receipt is bound to the payment's own nonce.",
+      "paidUsd": "0.02",
+      "paymentNonce": "0x02e8cac3ee10f8374d167c2e75da440acccf62532e0d83625474905d6e7bbe14",
+      "run": "runs/2026-10-08-paid/"
+    },
+    {
       "txHash": "0x5877f8121fccb3abbc22779de5b260e24c699fa782b1967c162d3e2be722e088",
       "service": "/demo/optimize",
       "note": "The sample globe in this repo: 1.97 MB in, 0.27 MB out. 9,216 triangles and 4,753 vertices both ways.",
@@ -23,7 +31,7 @@
     {
       "txHash": "0x1c86d9c233bfc97a4bfe454529983b88fe321d9c81d16ff7365dd9dc2a2cc1ae",
       "service": "/optimize",
-      "note": "A genuinely paid call, $0.02 in USDC. The file it covers is an earlier fixture, no longer in the repo.",
+      "note": "The first paid call, $0.02 in USDC. The file it covers was an earlier fixture that is no longer in the repo, so only its sizes can be checked now — and it predates payment binding.",
       "paidUsd": "0.02"
     }
   ]
