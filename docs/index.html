@@ -10,16 +10,14 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#060a18">
 
-<!-- These three absolute URLs move to https://aernyth.com/ the day that domain
-     resolves. Until then they must point somewhere that actually loads, or every
-     shared link previews as a broken image. docs/CNAME goes in at the same time:
-     adding it earlier redirects the github.io address to a domain that does not
-     exist yet, which takes the live site down. -->
+<!-- Absolute, and they have to stay that way: a social card is fetched by a
+     crawler with no page context, so a relative path gives it nothing. These
+     follow docs/CNAME — change one and change the other. -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://kendu3310.github.io/arcproof/">
+<meta property="og:url" content="https://aernyth.com/">
 <meta property="og:title" content="Aernyth — verifiable digital delivery">
 <meta property="og:description" content="Paying is easy. Proving delivery is the real problem. Receipts for paid API calls, written to Arc mainnet.">
-<meta property="og:image" content="https://kendu3310.github.io/arcproof/og.jpg">
+<meta property="og:image" content="https://aernyth.com/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
