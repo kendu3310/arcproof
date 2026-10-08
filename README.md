@@ -109,7 +109,7 @@ git clone https://github.com/kendu3310/arcproof
 cd arcproof                                  # the repository keeps its original name
 npm install
 git config core.hooksPath .githooks        # refuses to commit a key or a .env
-npm test                                   # 46 tests, no network or keys needed
+npm test                                   # 50 tests, no keys needed
 
 cp .env.example .env
 node scripts/new-wallet.mjs                # writes a fresh key to .env, never prints it

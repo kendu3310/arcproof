@@ -30,7 +30,8 @@
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+    "@noble/curves/secp256k1": "https://cdn.jsdelivr.net/npm/@noble/curves@1.9.1/secp256k1/+esm"
   }
 }
 </script>
@@ -588,46 +589,182 @@ async function loadDemoStatus() {
 
 async function runDemo(file) {
   if (!apiBase) return;
+  const input = new Uint8Array(await file.arrayBuffer());
+  // Batched first: the signature is checked the moment the bytes arrive and
+  // the chain catches up a few seconds later, which is the whole idea, shown.
+  // A service with batching off answers 404 and the immediate flow runs.
+  if (config.batch && (await runDemoBatched(input))) return;
+  await runDemoImmediate(input);
+}
 
-  const steps = [
-    "Uploading and optimising",
-    "Writing a receipt to Arc mainnet",
-    "Hashing both files in your browser",
-    "Comparing against the chain",
-  ];
+/** Lay out the step list and return a function that marks a step. */
+function startSteps(steps) {
   const out = el("demoOut");
   out.innerHTML = `<div class="panel" style="text-align:left"><ul class="steps">${steps
     .map((s, i) => `<li id="step${i}">${s}</li>`)
     .join("")}</ul><div id="demoDetail"></div></div>`;
   out.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  const mark = (i, state) => el(`step${i}`)?.classList.add(state);
+  return (i, state, label) => {
+    const li = el(`step${i}`);
+    if (!li) return;
+    li.classList.add(state);
+    if (label) li.textContent = label;
+  };
+}
+
+async function failedResponse(response, mark) {
+  const body = await response.json().catch(() => ({}));
+  mark(0, "fail");
+  el("demoDetail").innerHTML = `<div class="verdict bad">${body.error || `HTTP ${response.status}`}</div>`;
+}
+
+function resultGrid(input, output, report, receiptCell) {
+  return `
+    <div class="grid4">
+      <div><span class="k">Size</span><span class="v big">${fmtBytes(BigInt(input.length))} → ${fmtBytes(BigInt(output.length))}</span></div>
+      <div><span class="k">Triangles</span><span class="v big">${report.trianglesIn} → ${report.trianglesOut}</span></div>
+      <div><span class="k">Vertices</span><span class="v big">${report.verticesIn} → ${report.verticesOut}</span></div>
+      <div><span class="k">Receipt</span><span id="receiptCell">${receiptCell}</span></div>
+    </div>`;
+}
+
+function resultTail(output, report) {
+  const url = URL.createObjectURL(new Blob([output], { type: "model/gltf-binary" }));
+  return `
+    <div id="viewerBox"></div>
+    <p style="margin-top:16px"><a href="${url}" download="optimized.glb"><button class="action">Download the optimised file</button></a></p>
+    ${report.requiresExtensions?.length ? `<p class="hint">Needs <code>${report.requiresExtensions.join("</code>, <code>")}</code> to open — most modern engines support it; <code>?textureFormat=png</code> is available for older ones.</p>` : ""}`;
+}
+
+const geometryHeld = (report) =>
+  report.trianglesIn === report.trianglesOut && report.verticesIn === report.verticesOut;
+
+/**
+ * Batched: signature now, anchor shortly. Returns false only when the service
+ * has batching off, so the caller can fall back.
+ */
+async function runDemoBatched(input) {
+  const mark = startSteps([
+    "Uploading and optimising",
+    "Checking the provider's signature in your browser",
+    "Waiting for the batch to reach Arc mainnet",
+    "Checking the Merkle proof against the chain",
+  ]);
 
   try {
-    const input = new Uint8Array(await file.arrayBuffer());
+    const response = await fetch(`${apiBase}/batched/demo/optimize`, {
+      method: "POST",
+      headers: { "content-type": "model/gltf-binary" },
+      body: input,
+    });
+    if (response.status === 404) return false;
+    if (!response.ok) {
+      await failedResponse(response, mark);
+      return true;
+    }
+    mark(0, "done");
 
+    const output = new Uint8Array(await response.arrayBuffer());
+    const arrived = performance.now();
+    const report = JSON.parse(response.headers.get("x-glb-report") || "{}");
+    const header = (name) => response.headers.get(`x-aernyth-${name}`);
+
+    // The registry and the provider come from receipts.json, which this page
+    // already trusts — never from the response being checked.
+    const check = await import("./batched.js");
+    const signed = check.checkSignature({
+      chainId: config.network.chainId,
+      registry: config.batch.registry,
+      provider: config.batch.provider,
+      requestId: header("request-id"),
+      payer: header("payer"),
+      input,
+      output,
+      signature: header("signature") || "0x",
+    });
+    const signedMs = Math.max(1, Math.round(performance.now() - arrived));
+    mark(1, signed.ok ? "done" : "fail", `Provider's signature checked in your browser — ${signedMs} ms after the bytes arrived`);
+
+    el("demoDetail").innerHTML =
+      resultGrid(input, output, report, `<span class="v big">${signed.ok ? "signed · anchoring…" : "unsigned"}</span>`) +
+      `<div class="verdict ${signed.ok ? "ok" : "bad"}" id="batchVerdict">
+         ${signed.ok
+           ? `Signed. The provider's key signed for exactly the file you sent and the file you got back, and your
+              browser checked it ${signedMs} ms after the bytes arrived — before anything reached the chain.
+              The provider cannot now claim it sent something else.`
+           : `The signature does not hold: ${signed.reason}. These bytes are not what the provider committed to.`}
+         <span class="mono">sent     ${signed.receipt.inputHash}\nreceived ${signed.receipt.outputHash}</span>
+       </div>` +
+      resultTail(output, report);
+    void showModels(input, output, report);
+    if (!signed.ok) return true;
+
+    try {
+      const proof = await check.waitForProof(new URL(header("proof"), apiBase));
+      const anchoredS = ((performance.now() - arrived) / 1000).toFixed(1);
+      mark(2, "done", `Batch reached Arc mainnet ${anchoredS} s after the bytes`);
+
+      const anchor = await check.checkAnchor({
+        rpc,
+        registry: config.batch.registry,
+        provider: config.batch.provider,
+        leaf: signed.leaf,
+        proof,
+      });
+      mark(3, anchor.ok ? "done" : "fail");
+      el("receiptCell").innerHTML =
+        `<a class="v tx" href="${config.network.explorerUrl}/tx/${proof.txHash}">${short(proof.txHash)}${ICON_LINK}</a>`;
+      el("batchVerdict").insertAdjacentHTML(
+        "beforeend",
+        anchor.ok
+          ? `<p style="margin:10px 0 0">Anchored. ${anchoredS} s later the same receipt went onto Arc mainnet as leaf
+               ${proof.index + 1} of ${anchor.count} in one batch, and your browser walked the Merkle proof from your own
+               bytes to the root the provider committed. That is a public, timestamped record it cannot take back.
+               ${geometryHeld(report) ? "Triangle and vertex counts are unchanged, as promised — nothing was thrown away to make it smaller." : ""}</p>`
+          : `<p style="margin:10px 0 0">The anchor does not hold: ${anchor.reason}.</p>`,
+      );
+      if (!anchor.ok) el("batchVerdict").className = "verdict bad";
+    } catch (error) {
+      mark(2, "fail");
+      el("batchVerdict").insertAdjacentHTML(
+        "beforeend",
+        `<p style="margin:10px 0 0">The batch did not reach the chain (${error.message}). The signature above still
+         holds — it is enough to put this receipt on record yourself, through BatchRegistry.anchor.</p>`,
+      );
+    }
+    await loadDemoStatus();
+    return true;
+  } catch (error) {
+    el("demoDetail").innerHTML = `<div class="verdict bad">${error.message}</div>`;
+    return true;
+  }
+}
+
+/** Immediate: one transaction per receipt, held until mined. */
+async function runDemoImmediate(input) {
+  const mark = startSteps([
+    "Uploading and optimising",
+    "Writing a receipt to Arc mainnet",
+    "Hashing both files in your browser",
+    "Comparing against the chain",
+  ]);
+
+  try {
     const response = await fetch(`${apiBase}/demo/optimize`, {
       method: "POST",
       headers: { "content-type": "model/gltf-binary" },
       body: input,
     });
-
     if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      mark(0, "fail");
-      el("demoDetail").innerHTML = `<div class="verdict bad">${body.error || `HTTP ${response.status}`}</div>`;
+      await failedResponse(response, mark);
       return;
     }
     mark(0, "done");
 
     const output = new Uint8Array(await response.arrayBuffer());
     const report = JSON.parse(response.headers.get("x-glb-report") || "{}");
-    // Headers were renamed from x-arcproof-* to x-aernyth-*. The hosted service
-    // can lag a deploy behind this page, so read the new name and fall back to
-    // the old one rather than report a missing receipt that is really there.
-    const header = (name) =>
-      response.headers.get(`x-aernyth-${name}`) ?? response.headers.get(`x-arcproof-${name}`);
-    const txHash = header("tx");
-    const receiptError = header("error");
+    const txHash = response.headers.get("x-aernyth-tx");
+    const receiptError = response.headers.get("x-aernyth-error");
 
     if (!txHash) {
       mark(1, "fail");
@@ -660,27 +797,15 @@ async function runDemo(file) {
       receipt.bytesOut === BigInt(output.length);
     mark(3, matches ? "done" : "fail");
 
-    const geometryHeld =
-      report.trianglesIn === report.trianglesOut && report.verticesIn === report.verticesOut;
-
-    const url = URL.createObjectURL(new Blob([output], { type: "model/gltf-binary" }));
-
-    el("demoDetail").innerHTML = `
-      <div class="grid4">
-        <div><span class="k">Size</span><span class="v big">${fmtBytes(BigInt(input.length))} → ${fmtBytes(BigInt(output.length))}</span></div>
-        <div><span class="k">Triangles</span><span class="v big">${report.trianglesIn} → ${report.trianglesOut}</span></div>
-        <div><span class="k">Vertices</span><span class="v big">${report.verticesIn} → ${report.verticesOut}</span></div>
-        <div><span class="k">Receipt</span><a class="v tx" href="${config.network.explorerUrl}/tx/${txHash}">${short(txHash)}${ICON_LINK}</a></div>
-      </div>
-      <div class="verdict ${matches ? "ok" : "bad"}">
+    el("demoDetail").innerHTML =
+      resultGrid(input, output, report, `<a class="v tx" href="${config.network.explorerUrl}/tx/${txHash}">${short(txHash)}${ICON_LINK}</a>`) +
+      `<div class="verdict ${matches ? "ok" : "bad"}">
         ${matches
-          ? `Verified. The digests the chain recorded are exactly the digests of the file you sent and the file you just received.${geometryHeld ? " Triangle and vertex counts are unchanged, as promised — nothing was thrown away to make it smaller." : ""}`
+          ? `Verified. The digests the chain recorded are exactly the digests of the file you sent and the file you just received.${geometryHeld(report) ? " Triangle and vertex counts are unchanged, as promised — nothing was thrown away to make it smaller." : ""}`
           : "The receipt does not match these bytes. Something changed between the service and your browser."}
         <span class="mono">sent     ${inputHash}\nreceived ${outputHash}</span>
-      </div>
-      <div id="viewerBox"></div>
-      <p style="margin-top:16px"><a href="${url}" download="optimized.glb"><button class="action">Download the optimised file</button></a></p>
-      ${report.requiresExtensions?.length ? `<p class="hint">Needs <code>${report.requiresExtensions.join("</code>, <code>")}</code> to open — most modern engines support it; <code>?textureFormat=png</code> is available for older ones.</p>` : ""}`;
+      </div>` +
+      resultTail(output, report);
 
     void showModels(input, output, report);
     await loadDemoStatus();

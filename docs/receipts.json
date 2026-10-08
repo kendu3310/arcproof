@@ -13,6 +13,11 @@
     "deployBlock": 23587639,
     "deployTx": "0x76f5391d0e0bb5ae21caa7ad55e86a826864dd638adb95e41cba60ae8a60f56c"
   },
+  "batch": {
+    "registry": "0x54d6e7effde253f99c944b5a6f4421b590a80d74",
+    "provider": "0x48A93E9e4D2B7bC7Cd585c5c2493770265410EaD",
+    "comment": "Pinned here, not read from responses: the page checks batched receipts against this registry and this provider's key. Remove this block to make the demo use one-transaction-per-receipt."
+  },
   "receipts": [
     {
       "txHash": "0x88b3f3210115fab48f6f71c809b1e454389faadbb6fcc242657d920c5feb6cc6",

@@ -15,7 +15,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "node --test test/*.test.mjs && npm run test --workspaces --if-present",
+    "test": "node --test --experimental-strip-types test/*.test.mjs && npm run test --workspaces --if-present",
     "start": "node --experimental-strip-types examples/glb-service/src/server.ts"
   },
   "devDependencies": {
