@@ -1,0 +1,31 @@
+# Keeps the hosted service awake while the project is being reviewed.
+#
+# Render's free tier sleeps after 15 idle minutes and takes about a minute to
+# wake, which is long enough for a first-time visitor to give up on the demo.
+# A /health request every ten minutes prevents that. One service running all
+# month fits within the free tier's 750 instance hours.
+#
+# Temporary: it stops itself after STOP_AFTER. Delete this file afterwards.
+name: keep-awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      STOP_AFTER: "2026-10-22"
+    steps:
+      - name: Ping /health
+        run: |
+          if [ "$(date -u +%F)" \> "$STOP_AFTER" ]; then
+            echo "Past $STOP_AFTER; not pinging. Delete .github/workflows/keep-awake.yml."
+            exit 0
+          fi
+          curl -sS --max-time 90 --retry 2 https://arcproof.onrender.com/health

@@ -2,9 +2,13 @@
 
 **On-chain receipts for paid API calls on Arc.** Circle's x402 SDK settles the payment. Aernyth records what was delivered for it, in a form the provider cannot take back.
 
-Live on Arc mainnet, behind **[aernyth.com](https://aernyth.com)**.
+Live on Arc mainnet, behind **[aernyth.com](https://aernyth.com)**. On npm as [`aernyth`](https://www.npmjs.com/package/aernyth), published from this repository with provenance.
 
-**[Try it](https://aernyth.com)** — drop in a `.glb`, watch a receipt land on mainnet, and let your own browser check it. No wallet needed; those runs are sponsored. The service sleeps when idle, so the first request after a quiet spell takes about a minute to wake.
+```sh
+npm install aernyth
+```
+
+**[Try it](https://aernyth.com)** — drop in a 3D model (`.glb`) or a photo. You get the result back with a receipt signed for the exact bytes; your browser checks the signature at once, then checks the receipt's anchor on Arc mainnet a few seconds later, then checks the result itself — triangles recounted, or the image measured. No wallet needed; those runs are sponsored. The service can sleep when idle, so a first request after a quiet spell may take about a minute.
 
 ---
 
