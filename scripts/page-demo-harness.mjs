@@ -46,7 +46,10 @@ const code = [
   grab("function resultGrid(input, output, report, receiptCell)"),
   grab("function resultTail(output, report)"),
   html.match(/const geometryHeld = \(report\) =>\s*[^;]+;/)[0],
-  grab("async function runDemoBatched(input)"),
+  grab("async function runDemoBatched(input, service)"),
+  grab("const MODEL_SERVICE = {").replace("const MODEL_SERVICE", "var MODEL_SERVICE"),
+  grab("const IMAGE_SERVICE = {").replace("const IMAGE_SERVICE", "var IMAGE_SERVICE"),
+  constLine("IMAGE_BOX"),
   grab("async function runDemoImmediate(input)"),
   grab("async function rpc(method, params)"),
   grab("async function loadReceipt(txHash)"),
@@ -80,7 +83,9 @@ const element = (id) => {
 const ctx = {
   el: element, config, apiBase: config.api, __batched: batched, keccak256: win.keccak256,
   fetch, performance, URL, Blob, BigInt, JSON, Math, Number, String, TextEncoder, Uint8Array, Promise, setTimeout, console,
-  showModels: async () => undefined, loadDemoStatus: async () => undefined,
+  // No three.js here, so nothing is recounted: the same null the page gets
+  // when its preview cannot load.
+  showModels: async () => null, loadDemoStatus: async () => undefined, loadBatches: async () => undefined,
 };
 ctx.globalThis = ctx;
 createContext(ctx);
@@ -91,9 +96,9 @@ console.log(`running the page's runDemo() against ${config.api} …\n`);
 await ctx.runDemo({ arrayBuffer: async () => input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) });
 
 const strip = (s) => s.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 5; i++) {
   const step = elements.get(`step${i}`);
-  if (step) console.log(`  ${step.classes.has("done") ? "●" : step.classes.has("fail") ? "✗" : "○"} ${step.text}`);
+  if (step) console.log(`  ${step.classes.has("done") ? "●" : step.classes.has("fail") ? "✗" : step.classes.has("skipped") ? "–" : "○"} ${step.text}`);
 }
 const verdict = elements.get("batchVerdict") ?? null;
 console.log(`\nverdict (${verdict?.className || "from demoDetail"}):`);

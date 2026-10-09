@@ -123,3 +123,20 @@ test("the page reads a Batch log only from the pinned registry and the right pro
   const wrongLeaf = await page.checkAnchor({ ...args, leaf: leaves[2], rpc: rpcWith([log(REGISTRY, provider)]) });
   assert.equal(wrongLeaf.ok, false, "another receipt's proof");
 });
+
+test("the page reads a commit's published leaves and rebuilds its root exactly as the package does", async (t) => {
+  if (!page) return t.skip("js-sha3 could not be fetched");
+  const { encodeFunctionData } = await import("viem");
+  const { batchRegistryAbi } = await import("../packages/aernyth/src/batch.ts");
+  const { decodeCommit, encodeLeaves } = await import("../packages/aernyth/src/recover.ts");
+  for (const size of [1, 2, 3, 7, 20, 256]) {
+    const leaves = Array.from({ length: size }, () => `0x${randomBytes(32).toString("hex")}`);
+    const tree = buildTree(leaves);
+    const input = encodeFunctionData({ abi: batchRegistryAbi, functionName: "commit", args: [tree.root, size] }) + encodeLeaves(leaves).slice(2);
+    const ours = page.decodeCommit(input);
+    assert.deepEqual(ours, decodeCommit(input), `size ${size}`);
+    assert.equal(page.merkleRoot(ours.leaves), tree.root, `size ${size}`);
+  }
+  const rootOnly = encodeFunctionData({ abi: batchRegistryAbi, functionName: "commit", args: [`0x${"ab".repeat(32)}`, 3] });
+  assert.equal(page.decodeCommit(rootOnly).leaves, undefined);
+});

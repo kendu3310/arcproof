@@ -299,6 +299,15 @@
   .viewer-title { font-size:.74rem; letter-spacing:.06em; color:var(--muted); padding:9px 13px; border-bottom:1px solid var(--border); text-transform:uppercase; }
   .viewer-caption { font-family:var(--mono); font-size:.72rem; color:var(--muted); padding:9px 13px; border-top:1px solid var(--border); }
 
+  .imgpair { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; }
+  @media (max-width:640px) { .imgpair { grid-template-columns:1fr; } }
+  .imgpair figure { margin:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:rgba(10,15,34,.6); }
+  .imgpair img { display:block; width:100%; height:260px; object-fit:contain; background:rgba(5,8,20,.5); }
+  .imgpair figcaption { font-family:var(--mono); font-size:.72rem; color:var(--muted); padding:9px 13px; border-top:1px solid var(--border); }
+  .steps li.skipped::before { content:"–"; }
+
+  .rc.batch .thumb { font-family:var(--mono); font-size:.7rem; color:var(--muted); }
+
   footer { margin-top:72px; padding-top:24px; border-top:1px solid var(--border); color:var(--muted); font-size:.85rem; }
   .footrow { display:flex; flex-wrap:wrap; gap:18px 36px; }
   .footrow .v { font-size:.78rem; }
@@ -344,8 +353,9 @@
 
     <h2 class="headline">Paying is easy. <em>Proving delivery</em> is the real problem.</h2>
     <p class="sub">
-      Aernyth verifies what you actually received on Arc. Drop in a 3D model, get an
-      optimised one back, and a receipt for the exact bytes is written to Arc mainnet.
+      Aernyth makes a provider commit, on Arc, to exactly what it delivered. Drop in a 3D model
+      or a photo, get the result back with a signed receipt for the exact bytes, and watch your
+      browser check it — then check the result itself.
     </p>
 
     <div class="drop" id="demoDrop">
@@ -353,15 +363,16 @@
         <path d="M4.5 16.5A4 4 0 0 1 5 8.6a6 6 0 0 1 11.7-1.6A3.8 3.8 0 0 1 20 14.8"/>
         <path d="M12 21v-8M8.5 16.5 12 13l3.5 3.5"/>
       </svg>
-      <div class="title">Drop your .glb file here</div>
+      <div class="title">Drop a .glb model or an image here</div>
       <div class="alt">or click to <b>browse files</b></div>
       <div class="chips">
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>.glb models</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>.glb → smaller, same geometry</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>image → fits 800×800, no EXIF</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Max 24 MB</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>No wallet required</span>
         <span id="demoPill">checking…</span>
       </div>
-      <input type="file" id="demoFile" accept=".glb,model/gltf-binary" hidden>
+      <input type="file" id="demoFile" accept=".glb,model/gltf-binary,image/jpeg,image/png,image/webp,image/avif,image/gif" hidden>
     </div>
     <div id="demoOut"></div>
   </section>
@@ -387,7 +398,7 @@
         <div>
           <span class="stepnum">02</span>
           <h3>Process</h3>
-          <p>Textures are recompressed. Triangles and vertices are never touched — the model is not simplified.</p>
+          <p>The service does one job with a promise you can measure: a model's textures shrink while its triangles stay exactly as they were, or a photo is resized to fit without being stretched or keeping its EXIF.</p>
         </div>
       </div>
       <div class="arrow" aria-hidden="true">›</div>
@@ -396,7 +407,7 @@
         <div>
           <span class="stepnum">03</span>
           <h3>Prove</h3>
-          <p>Both digests go to a contract on Arc mainnet. Your browser re-checks them against the chain.</p>
+          <p>The provider signs the digests of both files as it replies, and within seconds that signature is anchored on Arc mainnet in a batch. Your browser checks the signature, the chain, and the promise itself.</p>
         </div>
       </div>
     </div>
@@ -418,6 +429,15 @@
     itself, below.
   </p>
   <div id="receiptList"><div class="panel muted" style="margin:0">Loading…</div></div>
+
+  <p class="muted" style="margin:26px 0 14px">
+    <b>Batches</b> are how receipts are written now: each one is signed as the file goes out, and up to 256
+    at a time are committed as one Merkle root. These are the provider's commits from roughly the last
+    forty minutes, found by scanning the chain from this page. <b>Leaves rebuilt</b> means this page took
+    the receipt leaves published in the commit's calldata, hashed them back up, and reached exactly the
+    root the chain recorded — so any receipt in that batch can be proven from the chain alone.
+  </p>
+  <div id="batchList"><div class="panel muted" style="margin:0">Scanning…</div></div>
 
   <div class="sechead" id="verify">
     <h2 class="plain">Check any receipt yourself</h2>
@@ -457,13 +477,22 @@
     </p>
     <p>
       That gap matters once the buyer is software. A person can open a 3D model and see it was mangled.
-      An autonomous agent cannot — it gets bytes back, and no way to tell a careful job from a lazy one.
+      An autonomous agent gets bytes back, and if they turn out to be bad, nothing ties them to the provider:
+      it can say it sent something else, and nobody can show otherwise.
     </p>
     <p>
-      <strong>Aernyth closes that gap and nothing else.</strong> After a service returns a result, it writes
-      the digests of the exact bytes in and out to a contract on Arc mainnet. The buyer hashes its own copies
-      and compares. No trust in the provider is needed at any point, which is the only arrangement that works
-      when nobody is watching.
+      <strong>Aernyth closes that gap and nothing else.</strong> When a service returns a result, it signs
+      the digests of the exact bytes in and out, and that signature reaches a contract on Arc mainnet within
+      seconds. The buyer hashes its own copies and compares. From then on the provider cannot claim it sent
+      something else.
+    </p>
+    <p>
+      <strong>That is not the same as proving the result is good.</strong> The provider writes the receipt,
+      so a provider that returns a broken file and records the broken file's digest passes every check above.
+      Quality is a separate check, run by the buyer against the content itself — this page recounts the
+      triangles of a model, or measures an image, rather than taking the service's word. A check like that is
+      what lets software reject bad output; the receipt is what makes the rejection stick to the provider who
+      caused it.
     </p>
     <p class="muted">
       It composes with Circle's middleware rather than replacing it — <code>gateway.require()</code> takes the
@@ -550,7 +579,7 @@ async function init() {
   // a link someone followed — which scrolled every visitor down to it.
   const linked = new URLSearchParams(location.search).get("tx");
 
-  await Promise.all([loadDemoStatus(), loadReceipts()]);
+  await Promise.all([loadDemoStatus(), loadReceipts(), loadBatches()]);
 
   if (linked && /^0x[0-9a-fA-F]{64}$/.test(linked)) {
     const picker = el("pick");
@@ -594,12 +623,89 @@ async function loadDemoStatus() {
 async function runDemo(file) {
   if (!apiBase) return;
   const input = new Uint8Array(await file.arrayBuffer());
+  // A GLB starts with the ASCII magic "glTF"; anything else is treated as an
+  // image and left to the service to accept or refuse with a reason.
+  const isModel = input[0] === 0x67 && input[1] === 0x6c && input[2] === 0x54 && input[3] === 0x46;
+  const service = isModel ? MODEL_SERVICE : IMAGE_SERVICE;
   // Batched first: the signature is checked the moment the bytes arrive and
   // the chain catches up a few seconds later, which is the whole idea, shown.
-  // A service with batching off answers 404 and the immediate flow runs.
-  if (config.batch && (await runDemoBatched(input))) return;
-  await runDemoImmediate(input);
+  // A service with batching off answers 404 and, for models, the immediate
+  // flow runs; the image service exists only batched.
+  if (config.batch && (await runDemoBatched(input, service))) return;
+  if (isModel) await runDemoImmediate(input);
+  else {
+    startSteps([]);
+    el("demoDetail").innerHTML = `<div class="verdict bad">The image service is not running on this deployment.</div>`;
+  }
 }
+
+/**
+ * The two services differ only in what the buyer checks. The receipt, the
+ * signature and the anchor are identical, which is the point of having two.
+ */
+const MODEL_SERVICE = {
+  route: "/batched/demo/optimize",
+  contentType: "model/gltf-binary",
+  working: "Uploading and optimising",
+  quality: "Recounting triangles in your browser",
+  grid(input, output, report, receiptCell) {
+    return resultGrid(input, output, report, receiptCell);
+  },
+  tail: (output, report) => resultTail(output, report),
+  // The recount happens in showModels, once three.js has loaded both models.
+  // Null when the preview could not load: then nothing was recounted, which
+  // is neither a pass nor a fail.
+  async check(input, output, report) {
+    const held = await showModels(input, output, report);
+    return held === null ? null : { ok: held };
+  },
+};
+
+const IMAGE_BOX = { width: 800, height: 800 };
+const IMAGE_SERVICE = {
+  route: `/batched/demo/image/resize?width=${IMAGE_BOX.width}&height=${IMAGE_BOX.height}&format=webp`,
+  contentType: "application/octet-stream",
+  working: "Uploading and resizing",
+  quality: "Measuring the result in your browser",
+  grid(input, output, _report, receiptCell) {
+    return `
+    <div class="grid4">
+      <div><span class="k">Size</span><span class="v big">${fmtBytes(BigInt(input.length))} → ${fmtBytes(BigInt(output.length))}</span></div>
+      <div><span class="k">Dimensions</span><span class="v big" id="dimsCell">measuring…</span></div>
+      <div><span class="k">Format</span><span class="v big" id="formatCell">…</span></div>
+      <div><span class="k">Receipt</span><span id="receiptCell">${receiptCell}</span></div>
+    </div>`;
+  },
+  tail(output) {
+    const url = URL.createObjectURL(new Blob([output], { type: "image/webp" }));
+    return `
+    <div id="viewerBox"></div>
+    <p style="margin-top:16px"><a href="${url}" download="resized.webp"><button class="action">Download the resized image</button></a></p>`;
+  },
+  /**
+   * The promise, measured here: the page decodes both files with the
+   * browser's own decoder and never reads the service's report.
+   */
+  async check(input, output) {
+    const checks = await import("./checks.js");
+    const result = await checks.checkResize({ input, output, box: IMAGE_BOX, format: "webp" });
+    el("dimsCell").textContent = `${result.before.width}×${result.before.height} → ${result.after.width}×${result.after.height}`;
+    el("formatCell").textContent = `${result.after.format}${result.after.exif ? " + EXIF" : ""}`;
+    const box = el("viewerBox");
+    const urlIn = URL.createObjectURL(new Blob([input]));
+    const urlOut = URL.createObjectURL(new Blob([output], { type: "image/webp" }));
+    box.innerHTML = `
+      <div class="imgpair">
+        <figure><img src="${urlIn}" alt="The image you sent"><figcaption>sent · ${result.before.width}×${result.before.height}</figcaption></figure>
+        <figure><img src="${urlOut}" alt="The image you got back"><figcaption>received · ${result.after.width}×${result.after.height}</figcaption></figure>
+      </div>
+      <p class="hint">Measured by your browser's own image decoder from the two files, not taken from anything the service said.
+        ${result.ok
+          ? `It fits ${IMAGE_BOX.width}×${IMAGE_BOX.height}, keeps its shape to the pixel, was not enlarged, and carries no EXIF.`
+          : `<strong>The promise does not hold: ${result.problems.join("; ")}.</strong>`}</p>`;
+    return result;
+  },
+};
 
 /** Lay out the step list and return a function that marks a step. */
 function startSteps(steps) {
@@ -647,18 +753,19 @@ const geometryHeld = (report) =>
  * Batched: signature now, anchor shortly. Returns false only when the service
  * has batching off, so the caller can fall back.
  */
-async function runDemoBatched(input) {
+async function runDemoBatched(input, service) {
   const mark = startSteps([
-    "Uploading and optimising",
+    service.working,
     "Checking the provider's signature in your browser",
+    service.quality,
     "Waiting for the batch to reach Arc mainnet",
     "Checking the Merkle proof against the chain",
   ]);
 
   try {
-    const response = await fetch(`${apiBase}/batched/demo/optimize`, {
+    const response = await fetch(`${apiBase}${service.route}`, {
       method: "POST",
-      headers: { "content-type": "model/gltf-binary" },
+      headers: { "content-type": service.contentType },
       body: input,
     });
     if (response.status === 404) return false;
@@ -690,7 +797,7 @@ async function runDemoBatched(input) {
     mark(1, signed.ok ? "done" : "fail", `Provider's signature checked in your browser — ${signedMs} ms after the bytes arrived`);
 
     el("demoDetail").innerHTML =
-      resultGrid(input, output, report, `<span class="v big">${signed.ok ? "signed · anchoring…" : "unsigned"}</span>`) +
+      service.grid(input, output, report, `<span class="v big">${signed.ok ? "signed · anchoring…" : "unsigned"}</span>`) +
       `<div class="verdict ${signed.ok ? "ok" : "bad"}" id="batchVerdict">
          ${signed.ok
            ? `Signed. The provider's key signed for exactly the file you sent and the file you got back, and your
@@ -699,14 +806,26 @@ async function runDemoBatched(input) {
            : `The signature does not hold: ${signed.reason}. These bytes are not what the provider committed to.`}
          <span class="mono">sent     ${signed.receipt.inputHash}\nreceived ${signed.receipt.outputHash}</span>
        </div>` +
-      resultTail(output, report);
-    void showModels(input, output, report);
+      service.tail(output, report);
+    // The quality check runs beside the chain wait, not after it: neither
+    // depends on the other, and the result is worth seeing while anchoring.
+    const quality = service.check(input, output, report).then(
+      (result) =>
+        result === null
+          ? mark(2, "skipped", "Not recounted — the preview could not load")
+          : mark(2, result.ok ? "done" : "fail"),
+      (error) => mark(2, "skipped", `Not measured — ${error.message}`),
+    );
     if (!signed.ok) return true;
 
     try {
-      const proof = await check.waitForProof(new URL(header("proof"), apiBase));
+      // The leaf rides along so that a provider that restarted, and forgot,
+      // can still rebuild this proof from the leaves its commit published.
+      const proofUrl = new URL(header("proof"), apiBase);
+      proofUrl.searchParams.set("leaf", signed.leaf);
+      const proof = await check.waitForProof(proofUrl);
       const anchoredS = ((performance.now() - arrived) / 1000).toFixed(1);
-      mark(2, "done", `Batch reached Arc mainnet ${anchoredS} s after the bytes`);
+      mark(3, "done", `Batch reached Arc mainnet ${anchoredS} s after the bytes`);
 
       const anchor = await check.checkAnchor({
         rpc,
@@ -715,7 +834,7 @@ async function runDemoBatched(input) {
         leaf: signed.leaf,
         proof,
       });
-      mark(3, anchor.ok ? "done" : "fail");
+      mark(4, anchor.ok ? "done" : "fail");
       el("receiptCell").innerHTML =
         `<a class="v tx" href="${config.network.explorerUrl}/tx/${proof.txHash}">${short(proof.txHash)}${ICON_LINK}</a>`;
       el("batchVerdict").insertAdjacentHTML(
@@ -723,20 +842,20 @@ async function runDemoBatched(input) {
         anchor.ok
           ? `<p style="margin:10px 0 0">Anchored. ${anchoredS} s later the same receipt went onto Arc mainnet as leaf
                ${proof.index + 1} of ${anchor.count} in one batch, and your browser walked the Merkle proof from your own
-               bytes to the root the provider committed. That is a public, timestamped record it cannot take back.
-               ${geometryHeld(report) ? "Triangle and vertex counts are unchanged, as promised — nothing was thrown away to make it smaller." : ""}</p>`
+               bytes to the root the provider committed. That is a public, timestamped record it cannot take back.</p>`
           : `<p style="margin:10px 0 0">The anchor does not hold: ${anchor.reason}.</p>`,
       );
       if (!anchor.ok) el("batchVerdict").className = "verdict bad";
     } catch (error) {
-      mark(2, "fail");
+      mark(3, "fail");
       el("batchVerdict").insertAdjacentHTML(
         "beforeend",
         `<p style="margin:10px 0 0">The batch did not reach the chain (${error.message}). The signature above still
          holds — it is enough to put this receipt on record yourself, through BatchRegistry.anchor.</p>`,
       );
     }
-    await loadDemoStatus();
+    await quality;
+    await Promise.all([loadDemoStatus(), loadBatches()]);
     return true;
   } catch (error) {
     el("demoDetail").innerHTML = `<div class="verdict bad">${error.message}</div>`;
@@ -831,7 +950,7 @@ async function runDemoImmediate(input) {
  */
 async function showModels(before, after, report) {
   const box = el("viewerBox");
-  if (!box) return;
+  if (!box) return null;
   box.innerHTML = `<p class="hint">Loading the 3D preview…</p>`;
 
   try {
@@ -855,10 +974,12 @@ async function showModels(before, after, report) {
          : "<strong>They differ. Geometry was altered.</strong>"}
        ${agrees ? "" : " <strong>They also disagree with the service's own report.</strong>"}</p>`,
     );
+    return held;
   } catch (error) {
     // A preview that will not load says nothing about whether the receipt is
     // sound, so it must not read like a verification failure.
     box.innerHTML = `<p class="hint">The 3D preview could not load (${error.message}). The receipt above is unaffected.</p>`;
+    return null;
   }
 }
 
@@ -891,6 +1012,49 @@ async function loadReceipts() {
   if (picker.value) await selectReceipt(picker.value, { remember: false });
 }
 
+/**
+ * The provider's recent batch commits, newest first. Nothing about them is
+ * listed in receipts.json: they are found on chain, so a demo run shows up
+ * here within seconds of anchoring.
+ */
+async function loadBatches() {
+  const list = el("batchList");
+  if (!config.batch) {
+    list.innerHTML = "";
+    return;
+  }
+  try {
+    const { recentBatches } = await import("./batched.js");
+    const batches = await recentBatches({ rpc, registry: config.batch.registry, provider: config.batch.provider });
+    list.innerHTML = batches.length
+      ? batches.map(renderBatch).join("")
+      : `<div class="panel muted" style="margin:0">No batches in the last forty minutes. Run the demo above and one appears here.</div>`;
+  } catch (error) {
+    list.innerHTML = `<div class="panel muted" style="margin:0">Could not scan for batches: ${error.message}</div>`;
+  }
+}
+
+function renderBatch(b) {
+  const when = new Date(b.timestamp * 1000).toISOString().replace("T", " ").slice(0, 16);
+  const rebuilt = b.rootRebuilt === undefined
+    ? `<span class="badge bad">root only</span>`
+    : `<span class="badge${b.rootRebuilt ? "" : " bad"}">${b.rootRebuilt ? "leaves rebuilt" : "leaves do not match"}</span>`;
+  return `
+    <div class="rc batch">
+      <div class="thumb">${ICON_CUBE}</div>
+      <div class="headcell">
+        <div class="name">Batch of ${b.count} receipt${b.count === 1 ? "" : "s"}</div>
+        <div class="meta">${when} UTC · ${b.leavesPublished ? "leaves in calldata" : "no leaves published"}</div>
+      </div>
+      <div class="badges"><span class="badge">recorded</span>${rebuilt}</div>
+      <div><span class="k">Receipts</span><span class="v big">${b.count}</span></div>
+      <div><span class="k">Root</span><span class="v">${short(b.root)}</span>${copyBtn(b.root)}</div>
+      <div><span class="k">Provider</span><span class="v">${short(config.batch.provider)}</span></div>
+      <div><span class="k">Transaction</span>
+        <a class="v tx" href="${config.network.explorerUrl}/tx/${b.txHash}">${short(b.txHash)}${ICON_LINK}</a></div>
+    </div>`;
+}
+
 /** Read one receipt by transaction hash. Scanning is not an option: the public
  *  RPC refuses eth_getLogs across more than ~5,000 blocks. */
 async function loadReceipt(txHash) {
@@ -920,13 +1084,19 @@ async function loadReceipt(txHash) {
   };
 }
 
-async function rpc(method, params) {
+async function rpc(method, params, attempt = 0) {
   const response = await fetch(config.network.rpcUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   const body = await response.json();
+  // The public RPC rate-limits bursts, and this page reads receipts, batches
+  // and proofs at once. A short wait clears it; a real error does not.
+  if (body.error && /rate limit/i.test(body.error.message) && attempt < 4) {
+    await new Promise((ok) => setTimeout(ok, 700 * (attempt + 1)));
+    return rpc(method, params, attempt + 1);
+  }
   if (body.error) throw new Error(body.error.message);
   return body.result;
 }

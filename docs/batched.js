@@ -150,3 +150,67 @@ export async function checkAnchor({ rpc, registry, provider, leaf, proof }) {
     timestamp: Number(BigInt("0x" + data.slice(64, 128))),
   };
 }
+
+/** Rebuild a sorted-pair Merkle root; an odd node is carried up unchanged. */
+export function merkleRoot(leaves) {
+  let level = leaves;
+  while (level.length > 1) {
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) next.push(i + 1 < level.length ? hashPair(level[i], level[i + 1]) : level[i]);
+    level = next;
+  }
+  return level[0];
+}
+
+const COMMIT_SELECTOR = text("commit(bytes32,uint32)").slice(0, 10);
+
+/**
+ * Read a commit transaction's input: the root and count the contract saw, and
+ * the leaves the provider appended after them. `leaves` is absent when the
+ * commit did not publish them.
+ */
+export function decodeCommit(input) {
+  if (input.slice(0, 10).toLowerCase() !== COMMIT_SELECTOR) throw new Error("not a BatchRegistry.commit call");
+  const root = "0x" + input.slice(10, 74);
+  const count = Number(BigInt("0x" + input.slice(74, 138)));
+  const suffix = input.slice(138);
+  if (suffix.length !== count * 64) return { root, count };
+  return { root, count, leaves: Array.from({ length: count }, (_, i) => "0x" + suffix.slice(i * 64, (i + 1) * 64)) };
+}
+
+/**
+ * The provider's most recent batches, read from the chain: every Batch event
+ * the pinned registry emitted for this provider in the last `blocks` blocks
+ * (the public RPC allows about 5,000), newest first. For each, whether the
+ * leaves in its calldata hash back up to the root the event recorded — a check
+ * this page makes itself.
+ */
+export async function recentBatches({ rpc, registry, provider, blocks = 4999, limit = 6 }) {
+  const head = BigInt(await rpc("eth_blockNumber", []));
+  const from = head > BigInt(blocks) ? head - BigInt(blocks) : 0n;
+  const logs = await rpc("eth_getLogs", [{
+    address: registry,
+    fromBlock: "0x" + from.toString(16),
+    toBlock: "0x" + head.toString(16),
+    topics: [BATCH_TOPIC, null, "0x" + provider.slice(2).toLowerCase().padStart(64, "0")],
+  }]);
+  const newest = logs.slice(-limit).reverse();
+  // One at a time: the public RPC rate-limits bursts, and six parallel
+  // lookups on top of the page's own reads is enough to trip it.
+  const batches = [];
+  for (const log of newest) {
+    const data = log.data.slice(2);
+    const tx = await rpc("eth_getTransactionByHash", [log.transactionHash]);
+    let decoded = {};
+    try { decoded = decodeCommit(tx.input); } catch { /* not a direct commit call */ }
+    batches.push({
+      txHash: log.transactionHash,
+      root: log.topics[1],
+      count: Number(BigInt("0x" + data.slice(0, 64))),
+      timestamp: Number(BigInt("0x" + data.slice(64, 128))),
+      leavesPublished: Boolean(decoded.leaves),
+      rootRebuilt: decoded.leaves ? merkleRoot(decoded.leaves).toLowerCase() === log.topics[1].toLowerCase() : undefined,
+    });
+  }
+  return batches;
+}
