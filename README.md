@@ -26,6 +26,10 @@ Aernyth fixes that part and nothing else. It does not touch money, and it does n
 
 ## How it works
 
+```sh
+npm install aernyth
+```
+
 Two independent middlewares, each doing one job:
 
 ```ts
