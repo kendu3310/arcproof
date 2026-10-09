@@ -88,12 +88,14 @@ export interface ReceiptWriterOptions {
 }
 
 /**
- * Did this fail before the transaction reached the mempool?
+ * Is this broadcast failure worth another attempt?
  *
- * Only then is a retry safe. viem surfaces these as message text rather than
- * typed errors, so matching on the text is what is available.
+ * Only ever asked about errors thrown before a transaction hash came back, so
+ * the transaction never reached the mempool and sending again cannot record
+ * anything twice. viem surfaces these as message text rather than typed
+ * errors, so matching on the text is what is available.
  */
-function isPreSubmitFailure(error: unknown): boolean {
+export function isRetryableBeforeSubmit(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
   return (
     message.includes("nonce") ||
@@ -102,9 +104,25 @@ function isPreSubmitFailure(error: unknown): boolean {
     message.includes("fetch failed") ||
     message.includes("socket") ||
     message.includes("econnreset") ||
-    message.includes("timeout") && message.includes("request")
+    (message.includes("timeout") && message.includes("request")) ||
+    isRateLimited(message)
   );
 }
+
+/**
+ * The public Arc RPC rate-limits bursts and says so in more than one way;
+ * "Request exceeds defined limit" is the one seen on mainnet.
+ */
+function isRateLimited(message: string): boolean {
+  return (
+    message.includes("exceeds defined limit") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests") ||
+    message.includes("status: 429")
+  );
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function arcChain(network: ArcNetwork): Chain {
   return defineChain({
@@ -201,25 +219,48 @@ export class ReceiptWriter {
   }
 
   async #sendWithRetry(call: ContractCall): Promise<Hex> {
-    try {
-      return await this.#submit(call);
-    } catch (error) {
-      // One retry, and only for failures that happen before the transaction
-      // is accepted — a stale nonce, a dropped RPC connection. Those are
-      // ordinary when two instances briefly share a wallet, which is exactly
-      // what a rolling redeploy produces.
-      //
-      // Nothing is retried once a transaction is in flight. The registry
-      // rejects a duplicate requestId, so a second attempt after a successful
-      // first one reverts, and the buyer would be told the delivery was
-      // unproven when it was in fact already proven.
-      if (!isPreSubmitFailure(error)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return await this.#submit(call);
+    // Two phases, retried differently.
+    //
+    // Before a hash comes back the transaction has not reached the mempool, so
+    // a failure there — a stale nonce, a dropped connection, the public RPC
+    // rate-limiting a burst — is safe to retry: up to three more times, backing
+    // off, because a rate limit needs a moment to clear.
+    //
+    // After the hash, the transaction is in flight and is never sent again.
+    // The registry rejects a duplicate requestId, so a resend after a
+    // successful first attempt reverts, and the buyer would be told the
+    // delivery was unproven when it was in fact already proven. Only the wait
+    // is retried.
+    let hash: Hex;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        hash = await this.#broadcast(call);
+        break;
+      } catch (error) {
+        if (attempt >= 3 || !isRetryableBeforeSubmit(error)) throw error;
+        await sleep(800 * 2 ** attempt);
+      }
+    }
+    return this.#confirm(hash);
+  }
+
+  async #confirm(hash: Hex): Promise<Hex> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const receipt = await this.#publicClient.waitForTransactionReceipt({ hash, timeout: this.#timeoutMs });
+        if (receipt.status !== "success") {
+          throw new Error(`Transaction reverted: ${this.network.explorerUrl}/tx/${hash}`);
+        }
+        return hash;
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+        if (attempt >= 3 || !isRateLimited(message)) throw error;
+        await sleep(800 * 2 ** attempt);
+      }
     }
   }
 
-  async #submit(call: ContractCall): Promise<Hex> {
+  async #broadcast(call: ContractCall): Promise<Hex> {
     const fees = await this.#publicClient.estimateFeesPerGas().catch(() => null);
 
     // Arc's mempool enforces a 20 Gwei floor on maxFeePerGas. Below it a
@@ -238,17 +279,7 @@ export class ReceiptWriter {
       maxPriorityFeePerGas: 1_000_000_000n,
     } as never);
 
-    const receipt = await this.#publicClient.waitForTransactionReceipt({
-      hash,
-      timeout: this.#timeoutMs,
-    });
-
-    if (receipt.status !== "success") {
-      throw new Error(
-        `Transaction reverted: ${this.network.explorerUrl}/tx/${hash}`,
-      );
-    }
-
     return hash;
   }
+
 }

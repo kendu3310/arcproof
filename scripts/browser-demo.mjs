@@ -81,6 +81,15 @@ report.consoleErrors = events
   .slice(0, 5);
 console.log(JSON.stringify(report, null, 2));
 
+// SCREENSHOT=out.png saves the demo result as a visitor would see it.
+if (process.env.SCREENSHOT) {
+  const { writeFileSync } = await import("node:fs");
+  const box = await evaluate(`(() => { const r = document.getElementById("demoOut").getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 24, width: innerWidth, height: r.height + 48 }; })()`);
+  const shot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { ...box, scale: 1 } });
+  writeFileSync(process.env.SCREENSHOT, Buffer.from(shot.result.data, "base64"));
+  console.log(`screenshot: ${process.env.SCREENSHOT}`);
+}
+
 ws.close();
 chrome.kill();
 await sleep(500);

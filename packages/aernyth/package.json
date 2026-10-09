@@ -1,6 +1,6 @@
 {
   "name": "aernyth",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "On-chain delivery receipts for paid API calls on Arc: the provider commits, irrevocably, to the exact bytes it returned for a payment.",
   "keywords": [
     "arc",
