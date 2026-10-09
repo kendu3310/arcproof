@@ -30,6 +30,7 @@ import { createPublicClient, http, parseUnits, type Address, type Hex } from "vi
 import { arcChain } from "aernyth";
 import { optimizeGlb, UnsupportedAsset } from "./optimize.ts";
 import { createDemoGuard } from "./demo.ts";
+import { handleResize, REPORT_HEADER as IMAGE_REPORT_HEADER } from "@aernyth/image-service";
 
 const network: ArcNetwork =
   process.env.ARC_NETWORK === "arc" ? arcMainnet : arcTestnet;
@@ -89,7 +90,7 @@ app.use((req, res, next) => {
   // browsers silently could not read it.
   res.setHeader(
     "access-control-expose-headers",
-    ["x-glb-report", "payment-response", ...Object.values(RECEIPT_HEADERS)].join(", "),
+    ["x-glb-report", IMAGE_REPORT_HEADER, "payment-response", ...Object.values(RECEIPT_HEADERS)].join(", "),
   );
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
@@ -237,10 +238,31 @@ if (anchor) {
     handleOptimize,
   );
   app.get("/receipts/:requestId", receiptProofs(anchor));
+
+  /**
+   * A second service on the same receipts, so the receipt is not mistaken
+   * for a feature of 3D optimisation. The buyer's acceptance check is
+   * different — fits the box, keeps its shape, never enlarged, no EXIF — and
+   * lives in examples/image-service; the receipt is identical.
+   */
+  app.post(
+    "/batched/image/resize",
+    rawBody,
+    gateway.require("$0.005") as unknown as RequestHandler,
+    withReceipt({ anchor, onError: (error) => console.error("[batched image receipt]", error) }),
+    handleResize,
+  );
+  app.post(
+    "/batched/demo/image/resize",
+    demoBody,
+    demoGuard.middleware,
+    withReceipt({ anchor, payer: writer.providerAddress, onError: (error) => console.error("[batched demo image receipt]", error) }),
+    handleResize,
+  );
 }
 
 app.listen(port, () => {
-  console.log(`glb-service on http://localhost:${port}`);
+  console.log(`reference service (3D models, images) on http://localhost:${port}`);
   console.log(`  network   ${network.name} (chain ${network.chainId})`);
   console.log(`  seller    ${sellerAddress}`);
   console.log(`  provider  ${writer.providerAddress}`);

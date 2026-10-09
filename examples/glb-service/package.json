@@ -10,6 +10,7 @@
     "test": "node --test --experimental-strip-types test/*.test.ts"
   },
   "dependencies": {
+    "@aernyth/image-service": "*",
     "@circle-fin/x402-batching": "^3.5.0",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
