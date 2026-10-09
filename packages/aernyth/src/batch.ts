@@ -15,14 +15,18 @@
  *     lookup() — or, if the provider never anchors, nothing, and it can anchor
  *     the signed receipt itself through BatchRegistry.anchor
  *
- * Proofs are kept in memory. A provider that restarts mid-batch loses that
- * batch's leaves; its buyers still hold signatures, which is why the
- * self-anchoring path exists, and why a buyer should store its proof the
- * moment it has one rather than trust the provider to keep serving it.
+ * Every commit also carries the batch's leaves in its calldata, after the
+ * arguments the contract reads. That makes the chain the store: any proof can
+ * be rebuilt from the commit transaction alone (see recover.ts), so a provider
+ * that restarts, or vanishes, takes nothing with it. Proofs are additionally
+ * cached in memory, which only saves the lookup. What a restart can still lose
+ * is a batch not yet committed; its buyers hold signatures and can anchor them
+ * themselves through BatchRegistry.anchor.
  */
 
 import type { Address, Hex } from "viem";
 import type { ReceiptData, ReceiptWriter } from "./receipt.ts";
+import type { ArcNetwork } from "./networks.ts";
 import { buildTree, proofFor } from "./merkle.ts";
 import { receiptDomain, receiptLeaf, type ReceiptDomain } from "./signed.ts";
 
@@ -122,6 +126,12 @@ export interface BatchAnchorOptions {
   maxWaitMs?: number;
   /** How many settled receipts to remember for lookup(). Default 10,000. */
   keep?: number;
+  /**
+   * Publish each batch's leaves in the commit's calldata so proofs can be
+   * rebuilt from the chain. Default true. Costs calldata gas per leaf; see
+   * design/batched-receipts.md for the measured figure.
+   */
+  publishLeaves?: boolean;
 }
 
 interface Waiting {
@@ -132,6 +142,7 @@ interface Waiting {
 }
 
 export class BatchAnchor {
+  readonly network: ArcNetwork;
   readonly registry: Address;
   readonly providerAddress: Address;
   readonly domain: ReceiptDomain;
@@ -140,6 +151,7 @@ export class BatchAnchor {
   #maxBatch: number;
   #maxWaitMs: number;
   #keep: number;
+  #publishLeaves: boolean;
   #waiting: Waiting[] = [];
   #timer: ReturnType<typeof setTimeout> | undefined;
   #status = new Map<string, AnchorStatus>();
@@ -147,12 +159,14 @@ export class BatchAnchor {
 
   constructor(options: BatchAnchorOptions) {
     this.#writer = options.writer;
+    this.network = options.writer.network;
     this.registry = options.registry;
     this.providerAddress = options.writer.providerAddress;
     this.domain = receiptDomain(options.writer.network.chainId, options.registry);
     this.#maxBatch = options.maxBatch ?? 256;
     this.#maxWaitMs = options.maxWaitMs ?? 1000;
     this.#keep = options.keep ?? 10_000;
+    this.#publishLeaves = options.publishLeaves ?? true;
     if (this.#maxBatch < 1 || this.#maxBatch > 0xffffffff) throw new Error("maxBatch must be between 1 and 2^32-1");
   }
 
@@ -219,6 +233,7 @@ export class BatchAnchor {
         abi: batchRegistryAbi,
         functionName: "commit",
         args: [tree.root, batch.length],
+        ...(this.#publishLeaves ? { dataSuffix: `0x${batch.map((w) => w.leaf.slice(2)).join("")}` as Hex } : {}),
       });
       batch.forEach((waiting, index) => {
         const proof: AnchorProof = {

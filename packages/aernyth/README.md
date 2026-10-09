@@ -37,7 +37,7 @@ The handler replies with `res.send(buffer)`, which is what the middleware interc
 
 ## Provider: batched mode
 
-The receipt is signed (EIP-712) and returned at once, then anchored with others as one Merkle root, at most 256 receipts or 1 s later. Measured on Arc: 24,148 gas per batch, against 49,559 per immediate receipt.
+The receipt is signed (EIP-712) and returned at once, then anchored with others as one Merkle root, at most 256 receipts or 1 s later. Each commit also carries the batch's leaves in its calldata, so any proof can be rebuilt from the chain alone. Measured on Arc testnet: 2,415 gas a receipt in a batch of 20 and 1,366 in a batch of 256, against 49,559 for an immediate receipt.
 
 ```ts
 import { BatchAnchor, receiptProofs } from "aernyth";
@@ -51,7 +51,7 @@ app.post("/optimize", raw, gateway.require("$0.02"), withReceipt({ anchor }), ha
 app.get("/receipts/:requestId", receiptProofs(anchor));
 ```
 
-Pending batches and proofs are held in memory. A restart loses the ones not yet served. Buyers still hold the signature and can anchor it themselves through `BatchRegistry.anchor`.
+Proofs are cached in memory and, once committed, recoverable from the chain: a buyer that adds `?leaf=0x…` to the proof URL gets it rebuilt after a provider restart. A batch not yet committed when the provider restarts is lost; its buyers hold signatures and can anchor them themselves through `BatchRegistry.anchor`.
 
 ## Buyer
 
@@ -72,7 +72,7 @@ const result = await verifyReceipt({
 if (!result.ok) console.log(result.problems);
 ```
 
-Batched receipts: `verifySignedReceipt` checks the signature offline the moment the bytes arrive. `verifyAnchoredReceipt` checks the Merkle proof from `x-aernyth-proof` once the batch is committed. Keep both the signature and the proof.
+Batched receipts: `verifySignedReceipt` checks the signature offline the moment the bytes arrive. `verifyAnchoredReceipt` checks the Merkle proof from `x-aernyth-proof` once the batch is committed. If the provider stops answering, `proofFromCommit` rebuilds the proof from a commit transaction and `findAnchorProof` finds the commit by scanning the provider's batches. Keep the signature: it is what lets you anchor the receipt yourself if it was never committed.
 
 `readPaymentAuthorization(header)` reads `{ from, nonce }` out of the `Payment-Signature` header you sent.
 

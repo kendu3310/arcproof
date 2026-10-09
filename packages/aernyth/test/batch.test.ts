@@ -6,7 +6,9 @@ import type { Address, Hex } from "viem";
 
 import { buildTree, proofFor, verifyProof } from "../src/merkle.ts";
 import { receiptDomain, receiptLeaf, recoverReceiptSigner, signReceipt } from "../src/signed.ts";
-import { BatchAnchor } from "../src/batch.ts";
+import { BatchAnchor, batchRegistryAbi } from "../src/batch.ts";
+import { decodeCommit, encodeLeaves } from "../src/recover.ts";
+import { encodeFunctionData } from "viem";
 import { verifySignedReceipt } from "../src/verifyBatch.ts";
 import { withReceipt, receiptProofs, RECEIPT_HEADERS } from "../src/withReceipt.ts";
 import { arcTestnet } from "../src/networks.ts";
@@ -266,4 +268,38 @@ test("a buyer can check binding to its payment from the signed receipt alone", a
   const other = await verifySignedReceipt({ ...params, paymentNonce: rand32() });
   assert.equal(other.paymentBound, false);
   assert.equal(other.ok, false);
+});
+
+/* ---------------------------------------------- leaves published on chain */
+
+test("a commit carries its leaves after the arguments, and they rebuild the committed root", async () => {
+  const { writer, commits } = fakeWriter();
+  const anchor = new BatchAnchor({ writer, registry: REGISTRY, maxBatch: 5, maxWaitMs: 60_000 });
+  const signed = await Promise.all(Array.from({ length: 5 }, () => anchor.add(receiptOf(writer.providerAddress))));
+  await Promise.all(signed.map((s) => s.anchored));
+
+  const call = commits[0]!;
+  const input = `${encodeFunctionData({ abi: batchRegistryAbi, functionName: "commit", args: call.args as [Hex, number] })}${call.dataSuffix!.slice(2)}` as Hex;
+  const decoded = decodeCommit(input);
+  assert.deepEqual(decoded.leaves, signed.map((s) => s.leaf));
+  assert.equal(buildTree(decoded.leaves!).root, decoded.root);
+  assert.equal(decoded.count, 5);
+});
+
+test("publishLeaves: false commits the root alone", async () => {
+  const { writer, commits } = fakeWriter();
+  const anchor = new BatchAnchor({ writer, registry: REGISTRY, maxBatch: 2, maxWaitMs: 60_000, publishLeaves: false });
+  const signed = await Promise.all([anchor.add(receiptOf(writer.providerAddress)), anchor.add(receiptOf(writer.providerAddress))]);
+  await Promise.all(signed.map((s) => s.anchored));
+  assert.equal(commits[0]!.dataSuffix, undefined);
+  const input = encodeFunctionData({ abi: batchRegistryAbi, functionName: "commit", args: commits[0]!.args as [Hex, number] });
+  assert.equal(decodeCommit(input).leaves, undefined);
+});
+
+test("decodeCommit refuses other calls, and ignores a suffix of the wrong length", () => {
+  const args: [Hex, number] = [rand32(), 2];
+  const input = encodeFunctionData({ abi: batchRegistryAbi, functionName: "commit", args });
+  assert.throws(() => decodeCommit(`0xdeadbeef${input.slice(10)}` as Hex), /not a BatchRegistry.commit/);
+  assert.equal(decodeCommit(`${input}${rand32().slice(2)}` as Hex).leaves, undefined);
+  assert.equal(decodeCommit(`${input}${encodeLeaves([rand32(), rand32()]).slice(2)}` as Hex).leaves?.length, 2);
 });

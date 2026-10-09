@@ -21,6 +21,7 @@ import { digest, deriveRequestId, toUint64Size, type Bytes } from "./digest.ts";
 import { PAYMENT_HEADER, readPaymentAuthorization, requestIdForPayment } from "./payment.ts";
 import type { ReceiptWriter } from "./receipt.ts";
 import type { BatchAnchor } from "./batch.ts";
+import { findAnchorProof } from "./recover.ts";
 import type { Address, Hex } from "viem";
 
 /** Headers the buyer reads to verify the exchange. */
@@ -241,20 +242,42 @@ export function withReceipt(options: WithReceiptOptions): RequestHandler {
  * while the batch is still open, 200 with status "failed" when the commit
  * failed (the buyer should then anchor its signed receipt itself), 404 when
  * this provider has no memory of the id.
+ *
+ * Memory does not survive a restart, but the chain does. A buyer that adds
+ * `?leaf=0x…` gets its proof rebuilt from the leaves published in the
+ * provider's recent commits, about the last forty minutes of blocks, when the
+ * id is no longer in memory.
  */
-export function receiptProofs(anchor: BatchAnchor): RequestHandler {
-  return (req, res) => {
+export function receiptProofs(anchor: BatchAnchor, options: { lookbackBlocks?: bigint } = {}): RequestHandler {
+  return async (req, res) => {
     const id = String(req.params.requestId ?? "");
     if (!/^0x[0-9a-fA-F]{64}$/.test(id)) {
       res.status(400).json({ error: "request id must be 0x followed by 64 hex digits" });
       return;
     }
     const known = anchor.lookup(id as Hex);
-    if (!known) {
+    if (known) {
+      res.status(known.status === "pending" ? 202 : 200).json(known);
+      return;
+    }
+    const leaf = typeof req.query?.leaf === "string" ? req.query.leaf : undefined;
+    if (!leaf || !/^0x[0-9a-fA-F]{64}$/.test(leaf)) {
       res.status(404).json({ status: "unknown" });
       return;
     }
-    res.status(known.status === "pending" ? 202 : 200).json(known);
+    try {
+      const proof = await findAnchorProof({
+        network: anchor.network,
+        registry: anchor.registry,
+        expectedProvider: anchor.providerAddress,
+        leaf: leaf as Hex,
+        maxBlocks: options.lookbackBlocks ?? 4_999n,
+      });
+      if (proof) res.json({ status: "anchored", proof, recovered: "from the commit's calldata" });
+      else res.status(404).json({ status: "unknown" });
+    } catch (error) {
+      res.status(502).json({ status: "unknown", error: error instanceof Error ? error.message : String(error) });
+    }
   };
 }
 

@@ -67,6 +67,16 @@ export {
   type ReceiptDomain,
 } from "./signed.ts";
 
+export {
+  encodeLeaves,
+  decodeCommit,
+  proofFromCommit,
+  findAnchorProof,
+  type DecodedCommit,
+  type ProofFromCommitParams,
+  type FindAnchorProofParams,
+} from "./recover.ts";
+
 export { buildTree, proofFor, verifyProof, type MerkleTree } from "./merkle.ts";
 
 export {

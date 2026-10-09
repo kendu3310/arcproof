@@ -69,6 +69,8 @@ export interface ContractCall {
   abi: Abi;
   functionName: string;
   args: readonly unknown[];
+  /** Bytes appended after the encoded arguments. The contract ignores them; the chain keeps them. */
+  dataSuffix?: Hex;
 }
 
 export interface ReceiptWriterOptions {

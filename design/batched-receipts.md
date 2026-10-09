@@ -225,14 +225,44 @@ passing:
 - `anchor` refuses a signature by the wrong key, a receipt altered after
   signing, and the malleable twin `(r, n − s)` of a valid signature.
 
+## Where proofs live: on chain
+
+*Settled 9 October 2026.* Serving proofs from `GET /receipts/{id}` alone put
+the provider in charge of its own evidence: a restart emptied its memory, and
+the hosting it runs on has no disk that survives one.
+
+So every commit now carries its leaves, concatenated in tree order, after the
+ABI-encoded `(root, count)`. `BatchRegistry` is unchanged — Solidity's decoder
+reads the arguments it declares and ignores the rest — but the transaction
+input keeps the leaves for as long as the chain exists. A verifier reads them
+back, checks there are exactly `count`, hashes them up, and accepts them only
+if they reach the root the `Batch` event recorded. Nothing about the bytes is
+trusted for being on chain.
+
+Measured on testnet by `scripts/measure-leaves.mjs`:
+
+| Batch | Root only | With leaves | Per receipt |
+|---:|---:|---:|---:|
+| 1 | — | 24,672 | 24,672 |
+| 20 | 24,148 | 48,300 | 2,415 |
+| 256 | — | 349,660 | 1,366 |
+
+About 1,260 gas per leaf — close to 40 gas a byte, which matches EIP-7623's
+floor price for calldata-heavy transactions rather than the usual 16. Against 49,559 for an immediate receipt that is still
+a twentieth, in exchange for proofs no provider can lose. `publishLeaves: false`
+restores root-only commits for anyone who would rather pay less and keep proofs
+themselves.
+
+What it gives a buyer: `proofFromCommit()` rebuilds a proof from the commit
+transaction; `findAnchorProof()` finds the batch by scanning the provider's
+`Batch` events when even the transaction is unknown; and `receiptProofs()`
+falls back to the same scan when a buyer adds `?leaf=` and the id is no longer
+in memory.
+
 ## Still open
 
 - Window policy: fixed T, fixed N, or both. Start with both — T = 1 s,
   N = 256 — and measure.
-- Where proofs live. `GET /receipts/{id}` puts the provider in charge of
-  serving its own evidence; a provider that goes offline takes the proofs with
-  it. The buyer should store its proof the moment it has one, and the reference
-  client should do that by default.
 - Whether "hold the response until anchored" survives as an option for callers
   that want the old behaviour. Probably yes, as `mode: "immediate"`, on the
   existing registry.

@@ -1,0 +1,35 @@
+{
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "registry": "0xb0f2c2454e8cc3d3e69250e6cebe50c568f1f837",
+  "results": [
+    {
+      "size": 1,
+      "publishLeaves": true,
+      "gasUsed": 24672,
+      "perReceipt": 24672,
+      "txHash": "0xc7f50ebe72caa72905531df354ce6ce199bd6a21a8413334bb5e47045d40b885"
+    },
+    {
+      "size": 20,
+      "publishLeaves": true,
+      "gasUsed": 48300,
+      "perReceipt": 2415,
+      "txHash": "0x823747233c51d6608a012acf578fee4e307b4d885dfd7f89864e506c6f8896f7"
+    },
+    {
+      "size": 256,
+      "publishLeaves": true,
+      "gasUsed": 349660,
+      "perReceipt": 1366,
+      "txHash": "0xf88cee35371634278ff968d8c5b4e78756129978509eba723f7b472d1e9da705"
+    },
+    {
+      "size": 20,
+      "publishLeaves": false,
+      "gasUsed": 24148,
+      "perReceipt": 1207,
+      "txHash": "0xfb7a8c360c27a1043c8def5881e99984e2b1f25796b3ed08928eafe536cc81ed"
+    }
+  ]
+}

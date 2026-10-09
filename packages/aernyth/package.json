@@ -1,6 +1,6 @@
 {
   "name": "aernyth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "On-chain delivery receipts for paid API calls on Arc: the provider commits, irrevocably, to the exact bytes it returned for a payment.",
   "keywords": [
     "arc",
@@ -45,7 +45,8 @@
     "dist",
     "src",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -57,8 +58,8 @@
     "viem": "^2.47.1"
   },
   "peerDependencies": {
-    "express": "^5.2.1",
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "express": "^5.2.1"
   },
   "peerDependenciesMeta": {
     "express": {
@@ -70,9 +71,9 @@
   },
   "devDependencies": {
     "@circle-fin/x402-batching": "^3.5.0",
-    "@x402/core": "^2.28.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.10.0",
+    "@x402/core": "^2.28.0",
     "typescript": "^5.7.0"
   }
 }
