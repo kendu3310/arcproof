@@ -1,0 +1,46 @@
+# Fails when the provider wallet runs low, so GitHub emails about it.
+#
+# Every receipt, batch commit and sponsored demo is paid for in USDC from this
+# wallet. When it empties, receipts stop being written, and the service keeps
+# delivering with x-aernyth-error set — easy to miss from outside. The demo
+# stops itself at 1 USDC; this warns well before that.
+#
+# GitHub sends a failed scheduled run to whoever last changed the schedule.
+name: provider-balance
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  balance:
+    runs-on: ubuntu-latest
+    env:
+      PROVIDER: "0x48A93E9e4D2B7bC7Cd585c5c2493770265410EaD"
+      RPC: https://rpc.mainnet.arc.io
+      # In USDC. Each batched demo run costs about $0.0005; a paid immediate
+      # receipt about $0.001.
+      WARN_BELOW: "2"
+    steps:
+      - name: Read the balance from Arc mainnet
+        run: |
+          node --input-type=module -e '
+            const { PROVIDER, RPC, WARN_BELOW } = process.env;
+            const body = await (await fetch(RPC, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [PROVIDER, "latest"] }),
+            })).json();
+            if (body.error) throw new Error(body.error.message);
+            // Native balance: 18 decimals.
+            const usdc = Number(BigInt(body.result) / 10n ** 12n) / 1e6;
+            console.log(`provider ${PROVIDER} holds ${usdc.toFixed(4)} USDC on Arc mainnet`);
+            if (usdc < Number(WARN_BELOW)) {
+              console.log(`::error::Provider wallet below ${WARN_BELOW} USDC (${usdc.toFixed(4)}). Top it up or receipts will stop.`);
+              process.exit(1);
+            }
+          '

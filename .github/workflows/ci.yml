@@ -1,0 +1,27 @@
+# Build and test on every push and pull request.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      # Some tests read real receipts from Arc mainnet and load js-sha3 from the
+      # CDN the page uses, so an outage of either can fail a run that would
+      # otherwise pass. Re-run before suspecting the code.
+      - run: npm test
