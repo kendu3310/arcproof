@@ -1,32 +1,70 @@
 {
   "name": "aernyth",
   "version": "0.1.0",
-  "description": "On-chain receipts for paid API calls on Arc: prove that what was delivered is what was paid for.",
+  "description": "On-chain delivery receipts for paid API calls on Arc: the provider commits, irrevocably, to the exact bytes it returned for a payment.",
+  "keywords": [
+    "arc",
+    "x402",
+    "usdc",
+    "circle",
+    "receipts",
+    "eip-712",
+    "merkle",
+    "micropayments",
+    "agents"
+  ],
+  "homepage": "https://aernyth.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kendu3310/arcproof.git",
+    "directory": "packages/aernyth"
+  },
+  "bugs": {
+    "url": "https://github.com/kendu3310/arcproof/issues"
+  },
   "license": "Apache-2.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./networks": "./dist/networks.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./networks": {
+      "types": "./dist/networks.d.ts",
+      "default": "./dist/networks.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
-    "README.md"
+    "src",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --experimental-strip-types test/*.test.ts"
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "viem": "^2.47.1"
   },
   "peerDependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "@types/express": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "express": {
+      "optional": true
+    },
+    "@types/express": {
       "optional": true
     }
   },
