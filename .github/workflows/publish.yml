@@ -1,9 +1,16 @@
-# Publishes the aernyth package to npm when a tag like aernyth-v0.2.0 is pushed.
+# Stages the aernyth package on npm when a tag like aernyth-v0.2.0 is pushed.
 #
 # Uses npm trusted publishing: npm verifies this exact workflow, in this
 # repository, through GitHub's OIDC token. No npm token is stored anywhere.
+#
+# It only stages. The trusted publisher is deliberately not allowed to publish
+# directly, so nothing reaches users until a maintainer approves it with 2FA:
+# npmjs.com → aernyth → Staged Packages → Approve. Whoever controls this
+# repository still cannot ship a version on their own.
+#
 # One-time setup on npmjs.com: package aernyth → Settings → Trusted Publisher →
-# GitHub Actions, owner kendu3310, repository arcproof, workflow publish.yml.
+# GitHub Actions, owner kendu3310, repository arcproof, workflow publish.yml,
+# with "Allow npm publish" left unticked.
 name: publish
 
 on:
@@ -23,8 +30,9 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships with 10.
-      - run: npm install -g npm@11
+      # Staged publishing needs npm 11.15.0 or later; Node 22 ships with 10.
+      - run: npm install -g "npm@>=11.15.0 <12"
+      - run: npm --version
       - run: npm ci
       - name: The tag must name the version being published
         run: |
@@ -32,5 +40,5 @@ jobs:
           test "aernyth-v$version" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME does not match package version $version"; exit 1; }
       - run: npm run build
       - run: npm test
-      - run: npm publish --access public
+      - run: npm stage publish . --access public
         working-directory: packages/aernyth
