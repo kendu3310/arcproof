@@ -605,18 +605,32 @@ async function loadDemoStatus() {
     return;
   }
 
+  // Free hosting sleeps when idle, and the first request wakes it — which
+  // takes up to a minute, during which the request simply hangs. Say so after
+  // a few seconds rather than leaving "checking…" on screen, and keep asking
+  // until the service answers, so the pill ends up telling the truth.
+  const slow = setTimeout(() => {
+    pill.textContent = "waking the service — up to a minute";
+  }, 3000);
   try {
-    const status = await (await fetch(`${apiBase}/demo/status`)).json();
-    if (status.available) {
-      pill.textContent = `${status.globalPerDay - status.usedToday} free runs left today`;
-    } else {
-      pill.textContent = status.reason;
-      drop.setAttribute("aria-disabled", "true");
+    for (let attempt = 0; attempt < 12; attempt++) {
+      try {
+        const status = await (await fetch(`${apiBase}/demo/status`)).json();
+        if (status.available) {
+          pill.textContent = `${status.globalPerDay - status.usedToday} free runs left today`;
+        } else {
+          pill.textContent = status.reason;
+          drop.setAttribute("aria-disabled", "true");
+        }
+        return;
+      } catch {
+        pill.textContent = "waking the service — up to a minute";
+        await new Promise((ok) => setTimeout(ok, 5000));
+      }
     }
-  } catch {
-    // Free hosting sleeps when idle, and the first request wakes it. Saying so
-    // beats a dead-looking page that silently does nothing.
-    pill.textContent = "service waking up";
+    pill.textContent = "service unreachable — try again shortly";
+  } finally {
+    clearTimeout(slow);
   }
 }
 
