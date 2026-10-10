@@ -23,3 +23,6 @@ BAI-HOC-WEB3.md
 # files it produces are committed under docs/, so the site builds without it.
 # scripts/make-brand.mjs needs it and says so when it is missing.
 brand-source/
+
+# npm credentials, should one ever land in the repository directory
+.npmrc
